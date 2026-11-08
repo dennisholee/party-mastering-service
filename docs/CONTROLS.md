@@ -258,3 +258,25 @@ In signed mode:
 The key in the Makefile is a local demo value. Production takes the HMAC key
 from the gateway secret store and the bundle private key from Jenkins
 credentials or an HSM; neither belongs in this repository.
+
+## 9. Replica-lag matrix
+
+`GET /parties/{partyId}` is registered with `x-freshness: fresh` and
+`x-max-staleness-seconds: 5`. The local PIP fixture reports a static lag, so
+`make test-lag` runs a third stack on `:18009` with the contract stub in
+`tools/stubpip`. The stub reads `lagSeconds`/`lagKnown` from
+`.tmp/lag-state.json` on every request, which lets the test change the state
+without restarting the sidecar.
+
+| Reported lag | `lagKnown` | Sidecar result |
+|---|---|---|
+| 2 | true | `200`, masked party |
+| 5 | true | `200` — the bound is inclusive |
+| 6 | true | `503 stale_attributes` |
+| any | false | `503 lag_unknown` |
+| 2 | true | `200` recovery |
+
+Because the read uses `fresh`, the sidecar bypasses its attribute cache on each
+request; a cached endpoint would keep serving the last value. The stub is test
+infrastructure, not a production PIP: production PIPs derive lag from the read
+replica and report `lagKnown` honestly.

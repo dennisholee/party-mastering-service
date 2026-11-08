@@ -31,7 +31,9 @@ The application implements business mastering only.
 - real Envoy + ext_proc contract tests for allow, deny, masking, DQ, rejected
   fields, self-description, unregistered routes and PIP outage;
 - a **signed mode**: Ed25519-signed bundle verification plus required HMAC
-  identity envelopes, with raw headers rejected.
+  identity envelopes, with raw headers rejected;
+- a **replica-lag matrix**: fresh reads allowed at the staleness boundary and
+  denied with `stale_attributes` / `lag_unknown`.
 
 ## Architecture
 
@@ -95,7 +97,7 @@ Prerequisites:
 - Docker with compose;
 - Go 1.26+ (builds the ext_proc/PIP Linux binaries);
 - a sibling checkout at `../controls-core` (override with `CONTROLS_CORE=...`);
-- ports `18007` (development) and `18008` (signed) free.
+- ports `18007` (development), `18008` (signed) and `18009` (replica-lag) free.
 
 ```bash
 mvn verify          # generate API/models, compile, run contract tests
@@ -103,6 +105,7 @@ make schema         # validate registry/mask fixtures against controls-core cont
 make gate           # schema + registry drift + openapi-diff + controls-check
 make test           # gate, build images, compose, end-to-end contract test, teardown
 make test-signed    # render/sign a bundle, require HMAC identity, contract test
+make test-lag       # stub PIP: boundary, stale and unknown replica-lag matrix
 ```
 
 Run the stack interactively:
@@ -163,6 +166,25 @@ curl -s -H "x-controls-identity: $TOKEN" http://127.0.0.1:18008/parties/PTY-1001
 allow, signed steward update, cleartext SSN rejection, and denial of missing,
 tampered, expired and wrong-key envelopes (`403 identity_untrusted`).
 
+### Replica-lag matrix
+
+`make test-lag` starts a third stack on `:18009` whose PIP is a local contract
+stub ([`tools/stubpip`](tools/stubpip)). The stub reads `lagSeconds` and
+`lagKnown` from a state file on every request, so the test can move the same
+`GET` between states without restarting the sidecar:
+
+| Reported lag | `lagKnown` | Result |
+|---|---|---|
+| 2 | true | `200` (within `x-max-staleness-seconds: 5`) |
+| 5 | true | `200` (boundary is inclusive) |
+| 6 | true | `503 stale_attributes` |
+| 2 | false | `503 lag_unknown` |
+| 2 | true after failure | `200` recovery |
+
+The read journey already uses `x-freshness: fresh`, so the sidecar bypasses its
+attribute cache and observes each state change immediately. The stub is test
+infrastructure only; production PIPs report real replica lag.
+
 ## What the contract test covers
 
 The Maven tests validate the contract in two layers: `RegistryContractTest`
@@ -198,6 +220,9 @@ envelope and adds: raw headers ignored, missing envelope, tampered signature,
 expired envelope, wrong signing key, and an Ed25519-verified bundle with no
 unsigned warning.
 
+`test-lag.sh` covers the staleness bound, `stale_attributes`, `lag_unknown` and
+recovery through the stub PIP.
+
 ## Repository layout
 
 ```text
@@ -218,9 +243,13 @@ sidecar.yaml                 sidecar runtime config (unsigned local bundle)
 sidecar.signed.yaml          signed bundle + HMAC identity runtime config
 compose.yaml                 app + PIP + sidecar (development headers)
 compose.signed.yaml          app + PIP + sidecar (signed bundle + identity)
+compose.lag.yaml             app + stub PIP + sidecar (replica-lag matrix)
 test.sh                      end-to-end contract test (development headers)
 test-signed.sh               signed bundle + signed identity contract test
+test-lag.sh                  stale_attributes / lag_unknown / recovery matrix
 tools/sign_identity.py       local HMAC envelope helper (stdlib only)
+tools/stubpip/               local PIP contract stub with state-file lag
+pip/Dockerfile.stub          image for the local stub PIP
 .github/workflows/ci.yml     CI: gate on PR, end-to-end on main/manual
 ci/README.md                 CI variables and local equivalents
 src/main/java/...            delegate, service, repository, error handler
@@ -259,7 +288,7 @@ attribute-shape mistake fails locally and in CI.
 | 3 — policy/DQ ownership | `controls/` fixtures are delivery-owned; service owns only annotations and registry |
 | 4 — package/deploy | `Dockerfile`, `sidecar/Dockerfile`; production uses the Helm library |
 | 5 — identity and PIP | raw headers in development; HMAC `x-controls-identity` in signed mode; PIP contract `1.0`, mTLS/keys in production |
-| 6 — test | `mvn verify`, `make schema`, `make gate`, `make test`, `make test-signed` |
+| 6 — test | `mvn verify`, `make schema`, `make gate`, `make test`, `make test-signed`, `make test-lag` |
 | 7 — rollout | signed bundle demo in `make signed`; key custody/canary remain production concerns |
 | 8 — operate | decision logs and metrics from the sidecar; alert on PIP/DQ/stale/bundle |
 
@@ -270,8 +299,8 @@ attribute-shape mistake fails locally and in CI.
 - **gate** on pushes and pull requests: `make gate`, including the schema and
   drift tests;
 - **e2e** on pushes to `main` and manual dispatch: `make test` (development
-  headers) and `make test-signed` (signed bundle + signed identity) through
-  Envoy + ext_proc.
+  headers), `make test-signed` (signed bundle + signed identity) and
+  `make test-lag` (replica-lag matrix) through Envoy + ext_proc.
 
 CI checks out `controls-core` next to this repository; set the repository
 variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the

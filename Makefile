@@ -20,12 +20,13 @@ SIGNED_DIR := $(TMP)/signed
 SIDECAR_IMAGE ?= party-mastering-sidecar:dev
 APP_IMAGE ?= party-mastering-app:dev
 PIP_IMAGE ?= party-mastering-pip:dev
+STUB_IMAGE ?= party-mastering-stubpip:dev
 
 # Local-only gateway key for signed mode. Production takes this from the
 # gateway secret store, never from a Makefile.
 IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
 
-.PHONY: registry schema gate images up signed test test-signed down logs logs-signed
+.PHONY: registry schema gate images up signed test test-signed stub lag test-lag down logs logs-signed logs-lag
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -98,6 +99,23 @@ signed: images
 test: gate up
 	./test.sh
 
+## Build the local PIP contract stub used for the replica-lag matrix.
+stub:
+	mkdir -p $(TMP)
+	cd tools/stubpip && CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) $(GO) build -o $(TMP)/stubpip .
+	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build --build-arg STUB_BIN=.tmp/stubpip \
+		-f pip/Dockerfile.stub -t $(STUB_IMAGE) .
+
+## Replica-lag stack: fresh GET with a stub PIP whose lag is state-file driven.
+lag: images stub
+	mkdir -p $(TMP)
+	printf '{"lagSeconds":2,"lagKnown":true}\n' > $(TMP)/lag-state.json
+	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.lag.yaml up -d
+
+## One-shot: gates, stub PIP, replica-lag failure matrix, teardown.
+test-lag: gate lag
+	./test-lag.sh
+
 ## One-shot: gates, signed bundle, signed identity, contract tests, teardown.
 test-signed: gate signed
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) ./test-signed.sh
@@ -105,9 +123,13 @@ test-signed: gate signed
 down:
 	docker compose down -v
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml down -v
+	docker compose -f compose.lag.yaml down -v
 
 logs:
 	docker compose logs -f
 
 logs-signed:
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml logs -f
+
+logs-lag:
+	docker compose -f compose.lag.yaml logs -f

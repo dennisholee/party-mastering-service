@@ -420,9 +420,12 @@ custom PIP, which defeats the "self-contained example" goal. The demo uses
 `lagSeconds: 2` and `x-freshness: fresh` on the read, so the happy path and the
 PIP-outage path are covered, but `stale_attributes` and `lag_unknown` are not.
 
-**Workaround here.** `pip/pip.yaml` sets `lagSeconds: 2`; `GET` uses
-`x-freshness: fresh` with `x-max-staleness-seconds: 5`; the outage test stops
-the PIP and expects `503 pip_unavailable`.
+**Workaround here.** `pip/pip.yaml` reports `lagSeconds: 2`; `GET` uses
+`x-freshness: fresh` with `x-max-staleness-seconds: 5`. A local PIP contract
+stub (`tools/stubpip`) reads `lagSeconds`/`lagKnown` from a state file on every
+request, so `make test-lag` exercises the boundary (`5` → allow), stale (`6` →
+`stale_attributes`), unknown (`lagKnown: false` → `lag_unknown`) and recovery
+without a custom PIP build.
 
 **Proposed upstream action.** Extend the fixture schema with per-resource
 `lagSeconds`, `lagKnown`, `version` and `ttlSeconds` overrides, and document
@@ -547,7 +550,7 @@ task.
 | G7 | JSON-only controlled routes | Non-JSON journeys not demonstrated |
 | G8 | Kebab-case operation ids + drift test | Adopters copying the guide may still get it wrong |
 | G9 | Wider `RegistryContractTest` | Only as good as the local test |
-| G10 | Fresh read + PIP outage test | Stale/unknown-lag paths untested locally |
+| G10 | Stub PIP with state-file lag covers boundary/stale/unknown/recovery | Fixture-level lag support still deferred upstream |
 
 ## 6. Reproductions
 

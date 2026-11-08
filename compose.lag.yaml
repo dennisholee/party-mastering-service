@@ -1,0 +1,39 @@
+name: party-mastering-service-lag
+
+# Replica-lag failure matrix stack. The PIP is a contract stub whose reported
+# lag/lagKnown is read from .tmp/lag-state.json on every request, so the test can
+# toggle stale and unknown-lag states without restarting the sidecar.
+services:
+  app:
+    image: party-mastering-app:dev
+    expose:
+      - "8080"
+
+  pip:
+    image: party-mastering-stubpip:dev
+    command:
+      - "-addr"
+      - ":8082"
+      - "-fixtures"
+      - "/etc/controls/attributes.json"
+      - "-state"
+      - "/etc/controls/lag-state.json"
+    volumes:
+      - ./.tmp/lag-state.json:/etc/controls/lag-state.json:ro
+    expose:
+      - "8082"
+
+  sidecar:
+    image: ${CONTROLS_SIDECAR_IMAGE:-party-mastering-sidecar:dev}
+    ports:
+      - "18009:8080"
+    environment:
+      CONTROLS_RUNTIME_CONFIG: /etc/controls/sidecar.yaml
+      SERVICE_NAME: party-mastering-lag
+    volumes:
+      - ./controls:/etc/controls/bundle:ro
+      - ./envoy/envoy.yaml:/etc/controls/envoy.yaml:ro
+      - ./sidecar.yaml:/etc/controls/sidecar.yaml:ro
+    depends_on:
+      - app
+      - pip
