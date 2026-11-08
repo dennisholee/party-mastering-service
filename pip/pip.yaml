@@ -1,0 +1,7 @@
+server:
+  addr: ":8082"
+  metricsAddr: ":9090"
+  # Report replica lag so the sidecar can enforce x-freshness/x-max-staleness.
+  lagSeconds: 2
+repository:
+  fixtures: /etc/controls/attributes.json

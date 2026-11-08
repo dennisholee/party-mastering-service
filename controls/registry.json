@@ -1,0 +1,76 @@
+{
+  "version": "1.0",
+  "defaultUnregistered": "deny",
+  "endpoints": [
+    {
+      "id": "get-party",
+      "service": "party-mastering",
+      "method": "GET",
+      "path": "/parties/{partyId}",
+      "resourceType": "party",
+      "action": "read",
+      "resourceId": {
+        "from": "path",
+        "name": "partyId"
+      },
+      "resourceSource": "pip",
+      "attributes": [
+        "ownerId",
+        "relationshipManagerId",
+        "region",
+        "status"
+      ],
+      "maskPolicy": "party.read",
+      "maskErrors": true,
+      "freshness": "fresh",
+      "maxStalenessSeconds": 5,
+      "selfDescribing": false
+    },
+    {
+      "id": "merge-party",
+      "service": "party-mastering",
+      "method": "POST",
+      "path": "/parties/{partyId}/merges",
+      "resourceType": "partyMerge",
+      "action": "write",
+      "resourceId": {
+        "from": "path",
+        "name": "partyId"
+      },
+      "resourceSource": "pip",
+      "attributes": [
+        "ownerId",
+        "relationshipManagerId",
+        "region",
+        "status"
+      ],
+      "maskPolicy": "party.merge",
+      "maskErrors": true,
+      "freshness": "cached",
+      "selfDescribing": false
+    },
+    {
+      "id": "update-party",
+      "service": "party-mastering",
+      "method": "PUT",
+      "path": "/parties/{partyId}",
+      "resourceType": "party",
+      "action": "write",
+      "resourceId": {
+        "from": "path",
+        "name": "partyId"
+      },
+      "resourceSource": "both",
+      "attributes": [
+        "ownerId",
+        "relationshipManagerId",
+        "region",
+        "status"
+      ],
+      "maskPolicy": "party.update",
+      "maskErrors": true,
+      "freshness": "cached",
+      "selfDescribing": true
+    }
+  ]
+}

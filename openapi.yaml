@@ -1,0 +1,503 @@
+openapi: 3.0.3
+info:
+  title: Party Mastering Service
+  version: 1.0.0
+  description: |
+    Bank customer data mastering service for the **Party** domain. A party is
+    the golden record for an individual customer: legal name, birth date,
+    identifiers, contact points, addresses, identity documents and consents.
+
+    The service implements business mastering only. Data-level entitlement,
+    response masking and request data-quality controls are enforced by the
+    controls sidecar **before** a request reaches this application. The
+    `x-resource-*` extensions on controlled operations are the service-owned
+    route/resource binding described in
+    `controls-core/docs/SIDECAR-GUIDE.md`.
+servers:
+  - url: http://localhost:8080
+    description: Direct application port (development only; never published in deployment)
+tags:
+  - name: parties
+    description: Party golden-record operations
+paths:
+  /parties/{partyId}:
+    get:
+      tags: [parties]
+      operationId: get-party
+      summary: Read the golden record for one individual customer
+      description: |
+        Returns the raw golden record. The sidecar resolves `partyId` against
+        the PIP, authorises the caller from route-bound attributes and masks
+        the response with `party.read`.
+      x-resource-type: party
+      x-resource-id: partyId
+      x-resource-source: pip
+      x-attributes: [ownerId, relationshipManagerId, region, status]
+      x-mask-policy: party.read
+      x-mask-errors: true
+      x-freshness: fresh
+      x-max-staleness-seconds: 5
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      responses:
+        '200':
+          description: Golden record (PII masked by the sidecar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '403':
+          description: Denied by entitlement, data quality or missing identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Party not found in the PIP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: PIP unavailable or replica lag unknown/exceeded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [parties]
+      operationId: update-party
+      summary: Replace the mutable golden-record attributes for one customer
+      description: |
+        Full-record update of the customer-maintained attributes. `_type`/`_id`
+        are cross-checked against the route when present (`x-self-describing`).
+        Resource attributes are overlaid from the PIP, so a caller cannot gain
+        entitlement by writing `ownerId`, `region` or `status` into the body.
+      x-resource-type: party
+      x-resource-id: partyId
+      x-resource-source: both
+      x-attributes: [ownerId, relationshipManagerId, region, status]
+      x-mask-policy: party.update
+      x-mask-errors: true
+      x-self-describing: true
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyUpdateRequest'
+      responses:
+        '200':
+          description: Updated golden record (PII masked by the sidecar)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Party'
+        '400':
+          description: Request schema validation failed in the application
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Denied by entitlement, data quality, rejected field or self-description mismatch
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Party not found in the PIP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Optimistic concurrency conflict
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: PIP unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /parties/{partyId}/merges:
+    post:
+      tags: [parties]
+      operationId: merge-party
+      summary: Merge a duplicate party into the golden record
+      description: |
+        Records a mastering merge. The target party is the route resource; the
+        duplicate is named in the request body. Entitlement is evaluated on the
+        target party's PIP attributes. The sidecar masks the duplicate id in the
+        response with `party.merge`.
+      x-resource-type: partyMerge
+      x-resource-id: partyId
+      x-resource-source: pip
+      x-attributes: [ownerId, relationshipManagerId, region, status]
+      x-mask-policy: party.merge
+      x-mask-errors: true
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PartyMergeRequest'
+      responses:
+        '201':
+          description: Merge recorded
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PartyMergeResult'
+        '400':
+          description: Request schema validation failed or source equals target
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Denied by entitlement or data quality
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Target or source party not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Target party cannot be merged (already closed)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: PIP unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /parties:
+    get:
+      tags: [parties]
+      operationId: search-parties
+      summary: Internal bulk search (not exposed through the sidecar)
+      description: |
+        Bulk search used by the internal data-stewardship console. It has no
+        single resource identity, so it cannot be route-bound or masked per
+        record. It is deliberately excluded from the generated registry with
+        `x-controls-ignore` and therefore stays default-deny at the sidecar.
+        The application port is not published; direct access is a deployment
+        error.
+      x-controls-ignore: true
+      parameters:
+        - name: query
+          in: query
+          required: false
+          description: Case-insensitive match on party id or legal name
+          schema:
+            type: string
+            maxLength: 64
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        '200':
+          description: Matching golden records (unmasked; internal only)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Party'
+components:
+  parameters:
+    PartyId:
+      name: partyId
+      in: path
+      required: true
+      description: Golden party identifier
+      schema:
+        type: string
+        pattern: '^PTY-[0-9]{4,}$'
+        example: PTY-1001
+  schemas:
+    Party:
+      type: object
+      description: Golden record for an individual bank customer.
+      required:
+        - partyId
+        - partyType
+        - legalName
+        - dateOfBirth
+        - contactPoints
+        - segment
+        - status
+        - ownerId
+        - relationshipManagerId
+        - region
+        - version
+        - updatedAt
+      properties:
+        partyId:
+          type: string
+          pattern: '^PTY-[0-9]{4,}$'
+          example: PTY-1001
+        partyType:
+          type: string
+          enum: [INDIVIDUAL]
+          description: Only natural persons are modelled by this service today.
+        legalName:
+          $ref: '#/components/schemas/LegalName'
+        dateOfBirth:
+          type: string
+          format: date
+          example: '1984-07-12'
+        ssn:
+          type: string
+          description: Sensitive national identifier; locked to full masking.
+          example: 111-22-3333
+        taxId:
+          type: string
+          description: Sensitive tax identifier; full masking.
+          example: TIN-99-8877665
+        contactPoints:
+          $ref: '#/components/schemas/ContactPoints'
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        documents:
+          type: array
+          description: Identity documents; document numbers are partially masked.
+          items:
+            $ref: '#/components/schemas/IdentityDocument'
+        segment:
+          type: string
+          enum: [RETAIL, PREMIER, PRIVATE]
+        status:
+          type: string
+          enum: [ACTIVE, BLOCKED, CLOSED]
+        riskRating:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        ownerId:
+          type: string
+          description: Subject id of the customer; used for owner entitlement.
+        relationshipManagerId:
+          type: string
+          description: Subject id of the assigned relationship manager.
+        region:
+          type: string
+          description: Servicing region used for regional entitlement and residency.
+        version:
+          type: integer
+          minimum: 1
+          description: Optimistic concurrency version of the golden record.
+        updatedAt:
+          type: string
+          format: date-time
+        sourceSystems:
+          type: array
+          items:
+            type: string
+        consents:
+          type: array
+          items:
+            $ref: '#/components/schemas/Consent'
+    LegalName:
+      type: object
+      required: [firstName, lastName]
+      properties:
+        firstName:
+          type: string
+          maxLength: 64
+        middleName:
+          type: string
+          maxLength: 64
+          description: |
+            Structurally up to 64 characters. The advisory DQ rule
+            `party.legalName.middleName.length` flags values over 40 without
+            blocking the update.
+        lastName:
+          type: string
+          maxLength: 64
+    ContactPoints:
+      type: object
+      required: [email, phone]
+      properties:
+        email:
+          $ref: '#/components/schemas/EmailContact'
+        phone:
+          $ref: '#/components/schemas/PhoneContact'
+    EmailContact:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+          format: email
+        verified:
+          type: boolean
+          default: false
+    PhoneContact:
+      type: object
+      required: [value]
+      properties:
+        value:
+          type: string
+        verified:
+          type: boolean
+          default: false
+    Address:
+      type: object
+      required: [type, line1, city, administrativeArea, postalCode, country]
+      properties:
+        type:
+          type: string
+          enum: [HOME, WORK, MAILING]
+        line1:
+          type: string
+          maxLength: 128
+        line2:
+          type: string
+          maxLength: 128
+        city:
+          type: string
+          maxLength: 64
+        administrativeArea:
+          type: string
+          maxLength: 64
+        postalCode:
+          type: string
+          maxLength: 16
+        country:
+          type: string
+          pattern: '^[A-Z]{2}$'
+    IdentityDocument:
+      type: object
+      required: [type, number, issuingCountry]
+      properties:
+        type:
+          type: string
+          enum: [PASSPORT, DRIVER_LICENSE, NATIONAL_ID]
+        number:
+          type: string
+          description: Document number; partially masked in responses.
+        issuingCountry:
+          type: string
+          pattern: '^[A-Z]{2}$'
+    Consent:
+      type: object
+      required: [purpose, granted]
+      properties:
+        purpose:
+          type: string
+          enum: [MARKETING, ANALYTICS, DATA_SHARING]
+        granted:
+          type: boolean
+        reference:
+          type: string
+    PartyUpdateRequest:
+      type: object
+      description: |
+        Full replacement of the mutable golden record. `_type`/`_id` are
+        optional but are cross-checked by the sidecar when present.
+      required:
+        - legalName
+        - dateOfBirth
+        - contactPoints
+        - segment
+        - changeReason
+        - version
+      properties:
+        _type:
+          type: string
+          enum: [party]
+        _id:
+          type: string
+          pattern: '^PTY-[0-9]{4,}$'
+        legalName:
+          $ref: '#/components/schemas/LegalName'
+        dateOfBirth:
+          type: string
+          format: date
+        ssn:
+          type: string
+          description: Rejected in cleartext by the sidecar (`rejected_field:ssn`).
+        taxId:
+          type: string
+          description: Rejected in cleartext by the sidecar (`rejected_field:taxId`).
+        contactPoints:
+          $ref: '#/components/schemas/ContactPoints'
+        addresses:
+          type: array
+          items:
+            $ref: '#/components/schemas/Address'
+        documents:
+          type: array
+          description: Document numbers are rejected in cleartext by the sidecar.
+          items:
+            $ref: '#/components/schemas/IdentityDocument'
+        segment:
+          type: string
+          enum: [RETAIL, PREMIER, PRIVATE]
+        changeReason:
+          type: string
+          pattern: '^[A-Z_]{3,32}$'
+          example: CUSTOMER_REQUEST
+        version:
+          type: integer
+          minimum: 1
+    PartyMergeRequest:
+      type: object
+      required: [sourcePartyId, reason]
+      properties:
+        sourcePartyId:
+          type: string
+          pattern: '^PTY-[0-9]{4,}$'
+          description: Duplicate party to merge into the route party.
+        reason:
+          type: string
+          pattern: '^[A-Z_]{3,32}$'
+          example: DUPLICATE_RECORD
+    PartyMergeResult:
+      type: object
+      required: [mergeId, partyId, mergedFromPartyId, status, mergedAt]
+      properties:
+        mergeId:
+          type: string
+          example: MRG-90001
+        partyId:
+          type: string
+          pattern: '^PTY-[0-9]{4,}$'
+        mergedFromPartyId:
+          type: string
+          pattern: '^PTY-[0-9]{4,}$'
+        status:
+          type: string
+          enum: [COMPLETED]
+        mergedAt:
+          type: string
+          format: date-time
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string

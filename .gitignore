@@ -1,0 +1,8 @@
+target/
+.m2-repo/
+.tmp/
+.gocache/
+.gopath/
+.DS_Store
+*.log
+.tmp-app.*

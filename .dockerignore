@@ -1,0 +1,7 @@
+.m2-repo/
+.git/
+.gocache/
+.gopath/
+docs/
+*.log
+.tmp-app.*

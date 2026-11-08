@@ -1,0 +1,10 @@
+spring:
+  application:
+    name: party-mastering-service
+  jackson:
+    default-property-inclusion: non_null
+server:
+  port: 8080
+  error:
+    include-message: never
+    include-stacktrace: never

@@ -1,0 +1,17 @@
+server:
+  listen: ":50051"
+  metricsAddr: ":9090"
+bundle:
+  path: /etc/controls/bundle
+  allowUnsigned: true          # local demo only; production bundles are signed
+  reloadInterval: 30s
+pip:
+  apiVersion: "1.0"
+  url: http://pip:8082
+  timeout: 100ms
+  defaultTTL: 30s
+  maxTTL: 5m
+audit:
+  sample: 1
+  buffer: 0
+  salt: party-mastering-local-salt

@@ -1,0 +1,170 @@
+{
+  "version": "1.0",
+  "defaultEffect": "deny",
+  "rules": [
+    {
+      "id": "party.read.owner",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "read",
+      "when": {
+        "field": "subject.sub",
+        "op": "eq",
+        "value": "$resource.ownerId"
+      }
+    },
+    {
+      "id": "party.read.relationship-manager",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "read",
+      "when": {
+        "field": "subject.sub",
+        "op": "eq",
+        "value": "$resource.relationshipManagerId"
+      }
+    },
+    {
+      "id": "party.read.region-ops",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "read",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "ops"
+          },
+          {
+            "field": "subject.claims.region",
+            "op": "eq",
+            "value": "$resource.region"
+          }
+        ]
+      }
+    },
+    {
+      "id": "party.read.compliance",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "read",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "compliance"
+          },
+          {
+            "field": "subject.claims.clearance",
+            "op": "eq",
+            "value": "high"
+          }
+        ]
+      }
+    },
+    {
+      "id": "party.write.steward",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "write",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "data-steward"
+          },
+          {
+            "field": "subject.claims.region",
+            "op": "eq",
+            "value": "$resource.region"
+          }
+        ]
+      }
+    },
+    {
+      "id": "party.write.compliance",
+      "effect": "allow",
+      "resourceType": "party",
+      "action": "write",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "compliance"
+          },
+          {
+            "field": "subject.claims.clearance",
+            "op": "eq",
+            "value": "high"
+          }
+        ]
+      }
+    },
+    {
+      "id": "party.write.blocked",
+      "effect": "deny",
+      "resourceType": "party",
+      "action": "write",
+      "when": {
+        "field": "resource.status",
+        "op": "eq",
+        "value": "BLOCKED"
+      }
+    },
+    {
+      "id": "partyMerge.write.steward",
+      "effect": "allow",
+      "resourceType": "partyMerge",
+      "action": "write",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "data-steward"
+          },
+          {
+            "field": "subject.claims.region",
+            "op": "eq",
+            "value": "$resource.region"
+          }
+        ]
+      }
+    },
+    {
+      "id": "partyMerge.write.compliance",
+      "effect": "allow",
+      "resourceType": "partyMerge",
+      "action": "write",
+      "when": {
+        "all": [
+          {
+            "field": "subject.claims.role",
+            "op": "eq",
+            "value": "compliance"
+          },
+          {
+            "field": "subject.claims.clearance",
+            "op": "eq",
+            "value": "high"
+          }
+        ]
+      }
+    },
+    {
+      "id": "partyMerge.write.blocked",
+      "effect": "deny",
+      "resourceType": "partyMerge",
+      "action": "write",
+      "when": {
+        "field": "resource.status",
+        "op": "eq",
+        "value": "BLOCKED"
+      }
+    }
+  ]
+}

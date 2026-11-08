@@ -1,0 +1,42 @@
+{
+  "version": "1.0",
+  "policies": {
+    "party.read": {
+      "default": "none",
+      "fields": {
+        "ssn": {"mode": "full"},
+        "taxId": {"mode": "full"},
+        "dateOfBirth": {"mode": "partial", "keep": "year"},
+        "contactPoints.email.value": {
+          "mode": "partial",
+          "keepPrefix": 1,
+          "preserveDomain": true
+        },
+        "contactPoints.phone.value": {"mode": "partial", "keepSuffix": 4},
+        "documents[*].number": {"mode": "partial", "keepSuffix": 3}
+      }
+    },
+    "party.update": {
+      "default": "none",
+      "rejectFields": ["ssn", "taxId", "documents[*].number"],
+      "fields": {
+        "ssn": {"mode": "full"},
+        "taxId": {"mode": "full"},
+        "dateOfBirth": {"mode": "partial", "keep": "year"},
+        "contactPoints.email.value": {
+          "mode": "partial",
+          "keepPrefix": 1,
+          "preserveDomain": true
+        },
+        "contactPoints.phone.value": {"mode": "partial", "keepSuffix": 4},
+        "documents[*].number": {"mode": "partial", "keepSuffix": 3}
+      }
+    },
+    "party.merge": {
+      "default": "none",
+      "fields": {
+        "mergedFromPartyId": {"mode": "partial", "keepSuffix": 4}
+      }
+    }
+  }
+}
