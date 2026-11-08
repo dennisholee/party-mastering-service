@@ -22,7 +22,7 @@ The application implements business mastering only.
 
 ## Status
 
-`v0.1.0` reference demo, verified against `controls-core` `v0.38.3`
+`v0.1.0` reference demo, verified against `controls-core` `v0.39.0`
 (Envoy 1.40 + ext_proc) with `make test` and `make test-signed` green:
 
 - Java build and generated-code contract tests;
@@ -320,7 +320,7 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 - The app port is unpublished; a NetworkPolicy should admit the gateway only
   to the sidecar and the sidecar only to the PIP.
 - The local demo image copies the sidecar entrypoint from `controls-core`
-  `v0.38.3`; production should use the `controls-sidecar` Helm library and pin
+  `v0.39.0`; production should use the `controls-sidecar` Helm library and pin
   images by digest.
 - The `x-controls-ignore`, DQ action/endpoint-scoping, mask-path and
   DQ-compilation gate gaps are fixed in the workspace `controls-core` checkout

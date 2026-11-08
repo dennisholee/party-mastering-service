@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Local demo entrypoint, copied from controls-core v0.38.3
+# Local demo entrypoint, copied from controls-core v0.39.0
 # deploy/sidecar/entrypoint.sh. The production path is the controls-sidecar
 # Helm library with a signed bundle; this copy exists only so this repository
 # can build a standalone demo image without editing controls-core.

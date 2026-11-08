@@ -1,17 +1,15 @@
 # Sidecar adoption guide — addendum and outstanding actions
 
 Status: findings from implementing `party-mastering-service` against
-`controls-core` **v0.38.3** plus the P0/P1 fixes applied on 2026-11-08
-(unreleased), and
+`controls-core` **v0.39.0** (released 2026-11-08) and
 [`SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md).
 
 **Coverage note.** The guide's phase 5 (signed identity) and phase 7 (signed
 bundle) are exercised in this repo by `make test-signed`; they are not gaps.
 Only the findings below required workarounds or are deferred upstream.
 
-**The P0/P1 fixes below were applied to the workspace `controls-core`
-checkout (unreleased).** This demo repository vendors none of that code; it
-consumes the sibling checkout. Every item is now either (a) fixed upstream and
+**The P0/P1 fixes below shipped in `controls-core` v0.39.0.** This demo
+repository vendors none of that code; it consumes the sibling checkout. Every item is now either (a) fixed upstream and
 removed from the demo's workarounds, (b) mitigated locally, or (c) still
 deferred. The purpose of this document is to keep the evidence and the
 remaining backlog reproducible.
@@ -445,14 +443,18 @@ All P0 and P1 items, with regression tests in `controls-core`:
    `addresses[*].country` (G4).
 10. Guide docs D1–D5 updated; DQ contract and schema added.
 
+### Release
+
+The fixes are released as `controls-core` **v0.39.0** (commit `10b5c06` plus the
+release commit) and tagged locally. Publishing the contracts package and tools
+image is a CI action that needs the registry credentials; it is not performed
+from this workspace.
+
 ### Remaining backlog
 
-1. **Release the controls-core changes.** The fixes are in the `Unreleased`
-   section; bump `VERSION`, publish the contracts/tools image, and remove
-   version-pinned references to `v0.38.3` in the demo docs.
-2. **Optional:** use the new `x-allow-non-json` path in a non-JSON demo route
+1. **Optional:** use the new `x-allow-non-json` path in a non-JSON demo route
    (for example a CSV export) to prove the opt-out end-to-end.
-3. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
+2. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
    static lag cases; keep the stub only for dynamic state toggling.
 
 ## 5. How this repo compensates
