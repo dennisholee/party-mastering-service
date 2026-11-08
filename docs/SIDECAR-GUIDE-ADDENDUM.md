@@ -8,6 +8,13 @@ Status: findings from implementing `party-mastering-service` against
 bundle) are exercised in this repo by `make test-signed`; they are not gaps.
 Only the findings below required workarounds or are deferred upstream.
 
+**Completeness enforcement.** [`docs/GUIDE-COVERAGE.md`](GUIDE-COVERAGE.md)
+maps every guide section to implementation, evidence and status (verified,
+partial, documented, environment-only). `make docs-check` fails on missing
+sections/extensions, broken links/anchors or nonexistent documented make
+targets; `make guide-smoke` runs the docs check plus all local gates and runtime
+suites.
+
 **The P0/P1 fixes below shipped in `controls-core` v0.39.0.** This demo
 repository vendors none of that code; it consumes the sibling checkout. Every item is now either (a) fixed upstream and
 removed from the demo's workarounds, (b) mitigated locally, or (c) still

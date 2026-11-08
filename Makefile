@@ -13,6 +13,7 @@ GOARCH ?= $(shell go env GOARCH)
 
 MVN ?= mvn
 MVN_ARGS ?=
+PYTHON ?= python3
 DOCKER_BUILDKIT ?= 0
 
 TMP := $(CURDIR)/.tmp
@@ -26,7 +27,7 @@ STUB_IMAGE ?= party-mastering-stubpip:dev
 # gateway secret store, never from a Makefile.
 IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
 
-.PHONY: registry schema gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture down logs logs-signed logs-lag logs-lag-fixture
+.PHONY: registry schema docs-check conformance gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture guide-smoke down logs logs-signed logs-lag logs-lag-fixture
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -39,9 +40,20 @@ registry:
 schema:
 	$(MVN) $(MVN_ARGS) -q -Dtest=ControlsSchemaTest test
 
+## Check links, anchors, documented make targets and guide coverage.
+docs-check:
+	$(PYTHON) tools/docs_check.py
+
+## Engine-level conformance fixtures against the committed bundle.
+conformance:
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/conformance \
+		-bundle ../party-mastering-service/controls \
+		-fixtures ../party-mastering-service/conformance/fixtures \
+		-service $(SERVICE) -v
+
 ## Build-time gates: Java tests + registry drift + OpenAPI coverage + bundle checks.
 ## Requires a sibling controls-core checkout (or CONTROLS_CORE=...).
-gate:
+gate: docs-check
 	$(MVN) $(MVN_ARGS) -q test
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/openapi-registry -check \
 		-openapi ../party-mastering-service/openapi.yaml \
@@ -54,6 +66,10 @@ gate:
 		-openapi ../party-mastering-service/openapi.yaml \
 		-bundle ../party-mastering-service/controls \
 		-pip-fixture ../party-mastering-service/pip/attributes.json
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/conformance \
+		-bundle ../party-mastering-service/controls \
+		-fixtures ../party-mastering-service/conformance/fixtures \
+		-service $(SERVICE)
 
 ## Build the app, PIP and Envoy/ext_proc images.
 images:
@@ -122,6 +138,9 @@ lag-fixture: images
 
 test-lag-fixture: gate lag-fixture
 	./test-lag-fixture.sh
+
+## Everything a reader can run locally: docs, gates and all runtime suites.
+guide-smoke: docs-check gate test test-signed test-lag test-lag-fixture
 
 ## One-shot: gates, signed bundle, signed identity, contract tests, teardown.
 test-signed: gate signed

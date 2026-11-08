@@ -1,0 +1,80 @@
+{
+  "name": "party-steward-update-masked",
+  "service": "party-mastering",
+  "pip": {
+    "party": {
+      "PTY-1001": {
+        "ownerId": "cust-1001",
+        "relationshipManagerId": "rm-77",
+        "region": "US",
+        "status": "ACTIVE"
+      }
+    }
+  },
+  "request": {
+    "method": "PUT",
+    "path": "/parties/PTY-1001",
+    "headers": {
+      "x-subject": "u-steward-us",
+      "x-claim-role": "data-steward",
+      "x-claim-region": "US"
+    },
+    "body": {
+      "legalName": {
+        "firstName": "Janet",
+        "lastName": "Doe"
+      },
+      "dateOfBirth": "1984-07-12",
+      "contactPoints": {
+        "email": {
+          "value": "janet.doe@example.com"
+        },
+        "phone": {
+          "value": "+1-415-555-0142"
+        }
+      },
+      "segment": "PREMIER",
+      "changeReason": "CUSTOMER_REQUEST",
+      "version": 1
+    }
+  },
+  "response": {
+    "status": 200,
+    "body": {
+      "partyId": "PTY-1001",
+      "partyType": "INDIVIDUAL",
+      "legalName": {
+        "firstName": "Jane",
+        "lastName": "Doe"
+      },
+      "dateOfBirth": "1984-07-12",
+      "ssn": "111-22-3333",
+      "taxId": "TIN-99-8877665",
+      "contactPoints": {
+        "email": {
+          "value": "jane.doe@example.com"
+        },
+        "phone": {
+          "value": "+1-415-555-0142"
+        }
+      },
+      "segment": "PREMIER",
+      "status": "ACTIVE",
+      "ownerId": "cust-1001",
+      "relationshipManagerId": "rm-77",
+      "region": "US",
+      "version": 1
+    }
+  },
+  "expect": {
+    "allowed": true,
+    "status": 200,
+    "masked": {
+      "ssn": "[REDACTED]",
+      "taxId": "[REDACTED]",
+      "dateOfBirth": "1984******",
+      "contactPoints.email.value": "j***@example.com",
+      "contactPoints.phone.value": "***********0142"
+    }
+  }
+}

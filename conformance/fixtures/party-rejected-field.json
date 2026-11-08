@@ -1,0 +1,36 @@
+{
+  "name": "party-cleartext-ssn-rejected",
+  "service": "party-mastering",
+  "pip": {
+    "party": {
+      "PTY-1001": {
+        "ownerId": "cust-1001",
+        "relationshipManagerId": "rm-77",
+        "region": "US",
+        "status": "ACTIVE"
+      }
+    }
+  },
+  "request": {
+    "method": "PUT",
+    "path": "/parties/PTY-1001",
+    "headers": {
+      "x-subject": "u-steward-us",
+      "x-claim-role": "data-steward",
+      "x-claim-region": "US"
+    },
+    "body": {
+      "legalName": {"firstName": "Janet", "lastName": "Doe"},
+      "dateOfBirth": "1984-07-12",
+      "ssn": "111-22-3333",
+      "contactPoints": {
+        "email": {"value": "janet.doe@example.com"},
+        "phone": {"value": "+1-415-555-0142"}
+      },
+      "segment": "PREMIER",
+      "changeReason": "CUSTOMER_REQUEST",
+      "version": 1
+    }
+  },
+  "expect": {"allowed": false, "status": 403, "reason": "rejected_field:ssn"}
+}

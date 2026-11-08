@@ -76,6 +76,35 @@ assert_code 403 "$code" "non-owner CSV export"
 code=$(req GET "/parties/PTY-9999/export" "$OUT" -H 'x-subject: cust-1001')
 assert_code 404 "$code" "unknown party CSV export"
 
+# ------------------------------------------------ body failure modes
+code=$(req PUT "/parties/PTY-1001" "$OUT" \
+  -H 'x-subject: u-steward-us' -H 'x-claim-role: data-steward' -H 'x-claim-region: US' \
+  -H 'content-type: application/json' --data-binary '{')
+assert_code 400 "$code" "malformed JSON"
+assert_reason invalid_json "$OUT" "malformed JSON"
+
+python3 - <<'PY'
+import json
+body = {
+    "legalName": {"firstName": "Janet", "lastName": "Doe"},
+    "dateOfBirth": "1984-07-12",
+    "contactPoints": {
+        "email": {"value": "janet.doe@example.com"},
+        "phone": {"value": "+1-415-555-0142"},
+    },
+    "segment": "PREMIER",
+    "changeReason": "CUSTOMER_REQUEST",
+    "version": 2,
+    "padding": "x" * 1100000,
+}
+open(".tmp/oversize.json", "w").write(json.dumps(body))
+PY
+code=$(req PUT "/parties/PTY-1001" "$OUT" \
+  -H 'x-subject: u-steward-us' -H 'x-claim-role: data-steward' -H 'x-claim-region: US' \
+  -H 'content-type: application/json' --data-binary @"$TMP/oversize.json")
+assert_code 413 "$code" "oversized request body"
+grep -qi 'payload too large' "$OUT" || fail "oversized body should be rejected by Envoy: $(cat "$OUT")"
+
 # ------------------------------------------------- relationship manager read
 code=$(req GET "/parties/PTY-1001" "$OUT" -H 'x-subject: rm-77')
 assert_code 200 "$code" "relationship manager read"

@@ -33,7 +33,9 @@ The application implements business mastering only.
 - a **signed mode**: Ed25519-signed bundle verification plus required HMAC
   identity envelopes, with raw headers rejected;
 - a **replica-lag matrix**: fresh reads allowed at the staleness boundary and
-  denied with `stale_attributes` / `lag_unknown`.
+  denied with `stale_attributes` / `lag_unknown`;
+- a **guide coverage matrix** and `make docs-check`/`make guide-smoke` so
+  documentation completeness and command drift are testable.
 
 ## Architecture
 
@@ -106,12 +108,14 @@ Prerequisites:
 
 ```bash
 mvn verify          # generate API/models, compile, run contract tests
-make schema         # validate registry/mask fixtures against controls-core contracts
-make gate           # schema + registry drift + openapi-diff + controls-check
+make schema         # validate registry/mask/DQ fixtures against controls-core contracts
+make docs-check     # links, anchors, documented make targets, guide coverage
+make gate           # docs + schema + drift + openapi-diff + controls-check + conformance
 make test           # gate, build images, compose, end-to-end contract test, teardown
 make test-signed    # render/sign a bundle, require HMAC identity, contract test
 make test-lag       # dynamic stub PIP: boundary, stale, unknown, recovery
 make test-lag-fixture # reference PIP + fixture resourceMeta: static matrix
+make guide-smoke     # docs-check + gate + all four runtime suites
 ```
 
 Run the stack interactively:
@@ -198,9 +202,12 @@ attribute cache and observes each value immediately.
 
 The Maven tests validate the contract in two layers: `RegistryContractTest`
 compares every annotation binding with the committed registry, and
-`ControlsSchemaTest` validates `registry.json` and `mask-policies.json` against
-the normative schemas in `controls-core/contracts` (skipped when the sibling
-checkout is absent; always present in `make gate` and CI).
+`ControlsSchemaTest` validates `registry.json`, `mask-policies.json` and
+`dq.json` against the normative schemas in `controls-core/contracts` (skipped
+when the sibling checkout is absent; always present in `make gate` and CI).
+`conformance/fixtures` adds an independent engine-level allow/deny/mask/DQ/
+rejected-field suite; [`docs/GUIDE-COVERAGE.md`](docs/GUIDE-COVERAGE.md) maps
+every guide section to its evidence and flags environment-only steps.
 
 `test.sh` runs through Envoy + ext_proc (not against the engine directly):
 
@@ -214,6 +221,8 @@ checkout is absent; always present in `make gate` and CI).
 | steward update | `200`, version increments, response masked |
 | owner CSV export | `200 text/csv`, non-sensitive columns only, no PII |
 | non-owner / unknown CSV export | `403` / `404` |
+| malformed JSON body | `400 invalid_json` |
+| request body above 1 MiB | `413 request_body_too_large` |
 | missing required first name | `403 dq_blocking:party.legalName.firstName.required` |
 | invalid country in an address array | `403 dq_blocking:party.addresses.country.format` |
 | invalid date / email / segment / version type | `403 dq_blocking:<rule>` |
@@ -260,11 +269,14 @@ compose.signed.yaml          app + PIP + sidecar (signed bundle + identity)
 compose.lag.yaml             app + stub PIP + sidecar (dynamic lag matrix)
 compose.lag-fixture.yaml     app + reference PIP + sidecar (static lag matrix)
 pip/pip.lag.yaml             PIP config without a process-wide lag override
+conformance/fixtures/        engine-level allow/deny/mask/DQ/reject fixtures
 test.sh                      end-to-end contract test (development headers)
 test-signed.sh               signed bundle + signed identity contract test
 test-lag.sh                  dynamic stale_attributes / lag_unknown / recovery
 test-lag-fixture.sh          fixture resourceMeta static lag matrix
 tools/sign_identity.py       local HMAC envelope helper (stdlib only)
+tools/docs_check.py          link/anchor/command/coverage checker
+docs/GUIDE-COVERAGE.md       guide-section and extension coverage matrix
 tools/stubpip/               local PIP contract stub with state-file lag
 pip/Dockerfile.stub          image for the local stub PIP
 .github/workflows/ci.yml     CI: gate on PR, end-to-end on main/manual
@@ -313,8 +325,8 @@ attribute-shape mistake fails locally and in CI.
 
 [`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs:
 
-- **gate** on pushes and pull requests: `make gate`, including the schema and
-  drift tests;
+- **gate** on pushes and pull requests: `make gate`, including the docs check,
+  schema, drift, OpenAPI, bundle and conformance gates;
 - **e2e** on pushes to `main` and manual dispatch: `make test` (development
   headers), `make test-signed` (signed bundle + signed identity) and
   `make test-lag` (replica-lag matrix) through Envoy + ext_proc.
@@ -348,6 +360,7 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 - [Party domain model](docs/DOMAIN.md)
 - [Controls: routes, entitlements, masks and DQ](docs/CONTROLS.md)
 - [Sidecar guide addendum and outstanding actions](docs/SIDECAR-GUIDE-ADDENDUM.md)
+- [Guide coverage matrix](docs/GUIDE-COVERAGE.md)
 - [CI setup](ci/README.md)
 - [Sidecar adoption guide](../controls-core/docs/SIDECAR-GUIDE.md)
 - [Registry specification](../controls-core/contracts/SPEC-registry.md)
