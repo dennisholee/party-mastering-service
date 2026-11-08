@@ -1,6 +1,6 @@
 # SIDECAR-GUIDE coverage matrix
 
-Scope: [`controls-core/docs/SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md)
+Scope: [`controls-core/docs/SIDECAR-GUIDE.md`](https://github.com/dennisholee/controls-core/docs/SIDECAR-GUIDE.md)
 at `controls-core` **v0.41.0**, plus its extensions and the service demo.
 
 Status legend:
@@ -26,7 +26,7 @@ local links/anchors and that documented `make` targets exist.
 | §3 | Prerequisites | `Makefile`, `compose*.yaml`, Helm charts | `make gate`, local stacks; cluster prerequisites absent | Partial |
 | §4 | Annotate contract, generate and gate registry | `openapi.yaml`, `RegistryContractTest`, `ControlsSchemaTest`, `openapi-registry`, `openapi-diff` | `make gate` | Verified |
 | §5 | Run locally | `compose.yaml`, `compose.signed.yaml`, `compose.lag*.yaml`, `sidecar*.yaml`, `pip/` | `make up`, `test*.sh` | Verified |
-| §6 | Policy and DQ ownership | `controls/*.json`; DQ contract [`SPEC-dq.md`](../../controls-core/contracts/SPEC-dq.md) | `controls-check`, tests | Documented |
+| §6 | Policy and DQ ownership | `controls/*.json`; DQ contract [`SPEC-dq.md`](https://github.com/dennisholee/controls-core/contracts/SPEC-dq.md) | `controls-check`, tests | Documented |
 | §7 | Package and deploy | `Dockerfile`, `sidecar/Dockerfile`, Helm charts | local images; Helm/cluster not deployed | Environment-only |
 | §8 | Identity and PIP | `sidecar.signed.yaml`, `tools/sign_identity.py`, PIP fixture/contract | `test-signed.sh`, PIP handshake; gateway/mTLS absent | Partial |
 | §9 | Test | `test/lib.sh`, `test*.sh`, `conformance/fixtures`, Maven tests | all local suites green, including malformed/oversized bodies; cluster matrix absent | Partial |
@@ -75,7 +75,7 @@ local links/anchors and that documented `make` targets exist.
 ## 4. Environment-only register
 
 These items are **not** claimed as verified by the demo. They are tracked in
-[`controls-core/docs/PILOT-CHECKLIST.md`](../../controls-core/docs/PILOT-CHECKLIST.md):
+[`controls-core/docs/PILOT-CHECKLIST.md`](https://github.com/dennisholee/controls-core/docs/PILOT-CHECKLIST.md):
 
 - CNI-enforced NetworkPolicy and gateway-only ingress.
 - Gateway header stripping and signed identity envelope.

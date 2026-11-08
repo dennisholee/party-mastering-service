@@ -11,7 +11,7 @@ A standalone reference microservice for **bank customer data mastering** in the
 
 Data-level **entitlement**, response **masking** and request **data-quality**
 controls are enforced by the controls sidecar, following
-[`controls-core/docs/SIDECAR-GUIDE.md`](../controls-core/docs/SIDECAR-GUIDE.md).
+[`controls-core/docs/SIDECAR-GUIDE.md`](https://github.com/dennisholee/controls-core/docs/SIDECAR-GUIDE.md).
 The application implements business mastering only.
 
 > This is a new, self-contained demo repository. It consumes a sibling
@@ -370,6 +370,6 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 - [Guide coverage matrix](docs/GUIDE-COVERAGE.md)
 - [Archived adoption findings](docs/archive/ADOPTION-FINDINGS-2026-11-08.md)
 - [CI setup](ci/README.md)
-- [Sidecar adoption guide](../controls-core/docs/SIDECAR-GUIDE.md)
-- [Registry specification](../controls-core/contracts/SPEC-registry.md)
-- [Mask operations specification](../controls-core/contracts/SPEC-mask-ops.md)
+- [Sidecar adoption guide](https://github.com/dennisholee/controls-core/docs/SIDECAR-GUIDE.md)
+- [Registry specification](https://github.com/dennisholee/controls-core/contracts/SPEC-registry.md)
+- [Mask operations specification](https://github.com/dennisholee/controls-core/contracts/SPEC-mask-ops.md)

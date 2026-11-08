@@ -7,7 +7,7 @@
 
 Status: findings from implementing `party-mastering-service` against
 `controls-core` **v0.41.0** (released 2026-11-08) and
-[`SIDECAR-GUIDE.md`](../../../controls-core/docs/SIDECAR-GUIDE.md).
+[`SIDECAR-GUIDE.md`](https://github.com/dennisholee/controls-core/docs/SIDECAR-GUIDE.md).
 
 **Coverage note.** The guide's phase 5 (signed identity) and phase 7 (signed
 bundle) are exercised in this repo by `make test-signed`; they are not gaps.
@@ -61,9 +61,9 @@ How to read each finding:
 route from the generated registry (it remains default-deny)".
 
 **Evidence.** `openapi-registry` honours the flag
-([`internal/openapiregistry/generate.go`](../../../controls-core/internal/openapiregistry/generate.go)),
+([`internal/openapiregistry/generate.go`](https://github.com/dennisholee/controls-core/internal/openapiregistry/generate.go)),
 but `openapi-diff` iterates every documented operation and requires a registry
-entry ([`internal/openapidiff/openapidiff.go`](../../../controls-core/internal/openapidiff/openapidiff.go)).
+entry ([`internal/openapidiff/openapidiff.go`](https://github.com/dennisholee/controls-core/internal/openapidiff/openapidiff.go)).
 Running the guide's gate on the raw contract fails:
 
 ```text
@@ -99,9 +99,9 @@ write-path control. It does not say DQ is evaluated on reads.
 
 **Evidence.** The engine parses the request body (empty for `GET`) and always
 calls `dq.Check(ep.ResourceType, body)`
-([`internal/engine/engine.go`](../../../controls-core/internal/engine/engine.go)).
+([`internal/engine/engine.go`](https://github.com/dennisholee/controls-core/internal/engine/engine.go)).
 `required` is `!present || value == nil || value == ""`
-([`internal/dq/dq.go`](../../../controls-core/internal/dq/dq.go)).
+([`internal/dq/dq.go`](https://github.com/dennisholee/controls-core/internal/dq/dq.go)).
 
 Adding this rule to the running demo:
 
@@ -181,7 +181,7 @@ arrays (addresses, documents, consents).
 dq rule "...": wildcard paths are not supported
 ```
 
-([`internal/dq/dq.go`](../../../controls-core/internal/dq/dq.go)). But
+([`internal/dq/dq.go`](https://github.com/dennisholee/controls-core/internal/dq/dq.go)). But
 `controls-check` loads the bundle with `config.LoadDir` and never compiles the
 rules, so it accepts the same rule and exits 0:
 
@@ -230,7 +230,7 @@ $ echo $?
 ```
 
 The warning is emitted in
-[`internal/controlscheck/check.go`](../../../controls-core/internal/controlscheck/check.go);
+[`internal/controlscheck/check.go`](https://github.com/dennisholee/controls-core/internal/controlscheck/check.go);
 only `res.Errors` fail the command.
 
 **Impact.** This is a security-relevant gate gap. A typo in `ssn`, `pan` or a
@@ -251,13 +251,13 @@ fails `controls-check`.
 
 ### G6 — Bare `partial` is accepted despite the spec (Medium)
 
-**Guide/contract:** [`SPEC-mask-ops.md`](../../../controls-core/contracts/SPEC-mask-ops.md)
+**Guide/contract:** [`SPEC-mask-ops.md`](https://github.com/dennisholee/controls-core/contracts/SPEC-mask-ops.md)
 says `partial` is valid only when at least one of `keepPrefix`, `keepSuffix`,
 `preserveDomain` or `keep` is set; "a bare partial is a validation error".
 
 **Evidence.** Bundle validation checks the mode and locked fields but not the
 presence of a keep parameter
-([`internal/config/config.go`](../../../controls-core/internal/config/config.go)).
+([`internal/config/config.go`](https://github.com/dennisholee/controls-core/internal/config/config.go)).
 A policy with `{"mode":"partial"}` loads successfully and `controls-check`
 returns `ok`. At runtime the partial masker masks the whole value (prefix 0,
 suffix 0), rather than rejecting the bundle.
@@ -282,10 +282,10 @@ mask contract (`SPEC-mask-ops.md` §6) says a masked endpoint fails closed on
 non-JSON unless it opts out.
 
 **Evidence.** `allowNonJSON` exists in the registry schema and runtime
-([`contracts/registry.schema.json`](../../../controls-core/contracts/registry.schema.json),
-[`internal/config/config.go`](../../../controls-core/internal/config/config.go)),
+([`contracts/registry.schema.json`](https://github.com/dennisholee/controls-core/contracts/registry.schema.json),
+[`internal/config/config.go`](https://github.com/dennisholee/controls-core/internal/config/config.go)),
 but the OpenAPI operation struct in the generator has no field for it
-([`internal/openapiregistry/generate.go`](../../../controls-core/internal/openapiregistry/generate.go)).
+([`internal/openapiregistry/generate.go`](https://github.com/dennisholee/controls-core/internal/openapiregistry/generate.go)).
 There is no `x-allow-non-json`, so a non-JSON endpoint cannot be expressed in
 the contract and still have a generated registry. The only options are to
 hand-edit the registry (anti-pattern) or stay JSON-only.
@@ -309,8 +309,8 @@ sidecar passes the non-JSON body through and entitlement still applies.
 **Guide:** the phase 1 example uses `operationId: getAccount`; the generated
 registry example uses `"id": "get-account"`.
 
-**Evidence.** [`SPEC-registry.md`](../../../controls-core/contracts/SPEC-registry.md)
-and [`registry.schema.json`](../../../controls-core/contracts/registry.schema.json)
+**Evidence.** [`SPEC-registry.md`](https://github.com/dennisholee/controls-core/contracts/SPEC-registry.md)
+and [`registry.schema.json`](https://github.com/dennisholee/controls-core/contracts/registry.schema.json)
 require kebab-case (`^[a-z0-9][a-z0-9-]*$`). The generator used
 `operationId` verbatim as the registry id, so a camelCase operation id produced
 a registry that violates the schema. The guide's example did exactly that.
@@ -333,7 +333,7 @@ kebab-case id.### G9 — `openapi-diff` parity is partial (Medium)
 
 **Evidence.** `compareAnnotations` compares only `x-resource-type`,
 `x-mask-policy`, `x-resource-source` and `x-resource-id`
-([`internal/openapidiff/openapidiff.go`](../../../controls-core/internal/openapidiff/openapidiff.go)).
+([`internal/openapidiff/openapidiff.go`](https://github.com/dennisholee/controls-core/internal/openapidiff/openapidiff.go)).
 It does not compare `x-action`, `x-attributes`, `x-freshness`,
 `x-self-describing`, `x-mask-errors` or `x-max-staleness-seconds`, even though
 all of those change enforcement behaviour.
@@ -360,7 +360,7 @@ independent service-side drift check.
 documents `lagSeconds`/`lagKnown` in the PIP contract.
 
 **Evidence.** The fixture format only contains `resources` and
-`classifications` ([`pip/server/repository.go`](../../../controls-core/pip/server/repository.go));
+`classifications` ([`pip/server/repository.go`](https://github.com/dennisholee/controls-core/pip/server/repository.go));
 lag is a process-wide `server.lagSeconds` setting, and `lagKnown` is derived
 from it. There is no fixture-level way to make one party stale, another unknown
 and a third fresh in the same run.
@@ -415,7 +415,7 @@ but no reusable test is provided. This repo's
 is a candidate template (SnakeYAML + Jackson, no extra dependencies).
 
 **Fixed:** the guide links the existing
-[`spring-accounts` drift test](../../../controls-core/examples/spring-accounts/src/test/java/example/RegistryContractTest.java).
+[`spring-accounts` drift test](https://github.com/dennisholee/controls-core/examples/spring-accounts/src/test/java/example/RegistryContractTest.java).
 
 ### D4 — DQ authoring is not specified
 
@@ -423,8 +423,8 @@ The guide listed `dq.json` ownership but not the rule schema, supported
 operators, `blocking` semantics, or the request-body-only scope. This repo's
 [`docs/CONTROLS.md`](../CONTROLS.md) §5 is a working reference.
 
-**Fixed:** added [`contracts/SPEC-dq.md`](../../../controls-core/contracts/SPEC-dq.md)
-and [`contracts/dq.schema.json`](../../../controls-core/contracts/dq.schema.json),
+**Fixed:** added [`contracts/SPEC-dq.md`](https://github.com/dennisholee/controls-core/contracts/SPEC-dq.md)
+and [`contracts/dq.schema.json`](https://github.com/dennisholee/controls-core/contracts/dq.schema.json),
 and linked them from the guide. The demo validates `dq.json` against the schema.
 
 ### D5 — Cached endpoints can hide a PIP outage in tests
