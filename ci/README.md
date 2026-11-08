@@ -39,7 +39,7 @@ controls repository.
 | Job | Trigger | What it runs |
 |---|---|---|
 | `gate` | push, pull request, manual | `make gate`: Java tests, generated-code drift, registry schema validation, OpenAPI coverage, bundle checks |
-| `e2e` | push to `main`, manual | `make test`: builds the app/PIP/sidecar images, starts compose, runs `test.sh` through Envoy + ext_proc, tears down |
+| `e2e` | push to `main`, manual | `make test` (development headers) and `make test-signed` (signed bundle + HMAC identity): builds images, runs both contract suites through Envoy + ext_proc, tears down |
 
 The end-to-end job is intentionally not run on every pull request: it builds
 three images and exercises a real Envoy listener. Run it manually with
@@ -51,6 +51,7 @@ three images and exercises a real Envoy listener. Run it manually with
 # from party-mastering-service, with ../controls-core present
 make gate
 make test
+make test-signed
 
 # validate only the contract schemas
 make schema

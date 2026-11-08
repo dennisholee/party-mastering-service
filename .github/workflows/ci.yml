@@ -98,6 +98,10 @@ jobs:
           cache: true
           cache-dependency-path: controls-core/go.sum
 
-      - name: Contract tests through Envoy
+      - name: Development-header contract tests
         working-directory: party-mastering-service
         run: make test
+
+      - name: Signed bundle and identity contract tests
+        working-directory: party-mastering-service
+        run: make test-signed

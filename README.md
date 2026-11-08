@@ -23,13 +23,15 @@ The application implements business mastering only.
 ## Status
 
 `v0.1.0` reference demo, verified against `controls-core` `v0.38.3`
-(Envoy 1.40 + ext_proc) with `make test` green:
+(Envoy 1.40 + ext_proc) with `make test` and `make test-signed` green:
 
 - Java build and generated-code contract tests;
 - registry schema validation against `controls-core/contracts`;
 - registry drift, OpenAPI coverage and bundle checks;
 - real Envoy + ext_proc contract tests for allow, deny, masking, DQ, rejected
-  fields, self-description, unregistered routes and PIP outage.
+  fields, self-description, unregistered routes and PIP outage;
+- a **signed mode**: Ed25519-signed bundle verification plus required HMAC
+  identity envelopes, with raw headers rejected.
 
 ## Architecture
 
@@ -93,13 +95,14 @@ Prerequisites:
 - Docker with compose;
 - Go 1.26+ (builds the ext_proc/PIP Linux binaries);
 - a sibling checkout at `../controls-core` (override with `CONTROLS_CORE=...`);
-- port `18007` free.
+- ports `18007` (development) and `18008` (signed) free.
 
 ```bash
 mvn verify          # generate API/models, compile, run contract tests
 make schema         # validate registry/mask fixtures against controls-core contracts
 make gate           # schema + registry drift + openapi-diff + controls-check
 make test           # gate, build images, compose, end-to-end contract test, teardown
+make test-signed    # render/sign a bundle, require HMAC identity, contract test
 ```
 
 Run the stack interactively:
@@ -107,6 +110,10 @@ Run the stack interactively:
 ```bash
 make up
 curl -s -H 'x-subject: cust-1001' http://127.0.0.1:18007/parties/PTY-1001 | jq
+make down
+
+# signed bundle + HMAC identity on :18008 (see "Signed mode" below)
+make signed
 make down
 ```
 
@@ -132,6 +139,29 @@ stand-in. Production requires the signed `x-controls-identity` envelope
 | `x-subject: u-steward-us`, `x-claim-role: data-steward`, `x-claim-region: US` | update/merge `PTY-1001` |
 | `x-subject: u-steward-eu`, `x-claim-role: data-steward`, `x-claim-region: EU` | update `PTY-2002` is denied (BLOCKED deny rule) |
 | `x-subject: u-2` or no identity | `403` default deny |
+
+### Signed mode
+
+`make signed` renders the flat `controls/` fixtures into a bundle, generates an
+Ed25519 key pair, signs the bundle, verifies it, and starts a second stack on
+`:18008` with `allowUnsigned: false`, only the public key mounted, and
+`CONTROLS_IDENTITY_HMAC_KEY` set. Any direct `docker compose -f
+compose.signed.yaml` command must export that key; the make targets set it for
+you. Every request must then carry a valid
+`x-controls-identity` envelope; raw `x-subject`/`x-claim-*` are ignored.
+
+Mint a local envelope with the stdlib-only helper:
+
+```bash
+export CONTROLS_IDENTITY_HMAC_KEY=party-mastering-local-identity-key-change-me
+TOKEN=$(python3 tools/sign_identity.py \
+  --subject u-ops-us --claim role=ops --claim region=US)
+curl -s -H "x-controls-identity: $TOKEN" http://127.0.0.1:18008/parties/PTY-1001 | jq
+```
+
+`make test-signed` runs the signed contract tests: owner/RM/ops/compliance
+allow, signed steward update, cleartext SSN rejection, and denial of missing,
+tampered, expired and wrong-key envelopes (`403 identity_untrusted`).
 
 ## What the contract test covers
 
@@ -163,6 +193,11 @@ checkout is absent; always present in `make gate` and CI).
 | application port | not published |
 | PIP stopped | `503 pip_unavailable` |
 
+`test-signed.sh` repeats the core allow/masking/rejection cases with a signed
+envelope and adds: raw headers ignored, missing envelope, tampered signature,
+expired envelope, wrong signing key, and an Ed25519-verified bundle with no
+unsigned warning.
+
 ## Repository layout
 
 ```text
@@ -180,8 +215,12 @@ sidecar/
   Dockerfile, entrypoint.sh  local Envoy + ext_proc demo image
 envoy/envoy.yaml             Envoy listener/cluster/ext_proc config
 sidecar.yaml                 sidecar runtime config (unsigned local bundle)
-compose.yaml                 app + PIP + sidecar
-test.sh                      end-to-end contract test
+sidecar.signed.yaml          signed bundle + HMAC identity runtime config
+compose.yaml                 app + PIP + sidecar (development headers)
+compose.signed.yaml          app + PIP + sidecar (signed bundle + identity)
+test.sh                      end-to-end contract test (development headers)
+test-signed.sh               signed bundle + signed identity contract test
+tools/sign_identity.py       local HMAC envelope helper (stdlib only)
 .github/workflows/ci.yml     CI: gate on PR, end-to-end on main/manual
 ci/README.md                 CI variables and local equivalents
 src/main/java/...            delegate, service, repository, error handler
@@ -216,12 +255,12 @@ attribute-shape mistake fails locally and in CI.
 | Guide phase | Where it lives here |
 |---|---|
 | 1 — annotate the contract | `openapi.yaml`; `make registry`; `RegistryContractTest` |
-| 2 — run locally | `compose.yaml`, `envoy/`, `pip/`, `sidecar.yaml` |
+| 2 — run locally | `compose.yaml`, `envoy/`, `pip/`, `sidecar.yaml`; signed mode in `compose.signed.yaml` |
 | 3 — policy/DQ ownership | `controls/` fixtures are delivery-owned; service owns only annotations and registry |
 | 4 — package/deploy | `Dockerfile`, `sidecar/Dockerfile`; production uses the Helm library |
-| 5 — identity and PIP | raw headers locally; PIP contract `1.0`, mTLS/keys in production |
-| 6 — test | `mvn verify`, `make schema`, `make gate`, `make test` |
-| 7 — rollout | not automated; signed bundle + canary are production concerns |
+| 5 — identity and PIP | raw headers in development; HMAC `x-controls-identity` in signed mode; PIP contract `1.0`, mTLS/keys in production |
+| 6 — test | `mvn verify`, `make schema`, `make gate`, `make test`, `make test-signed` |
+| 7 — rollout | signed bundle demo in `make signed`; key custody/canary remain production concerns |
 | 8 — operate | decision logs and metrics from the sidecar; alert on PIP/DQ/stale/bundle |
 
 ## CI
@@ -230,8 +269,9 @@ attribute-shape mistake fails locally and in CI.
 
 - **gate** on pushes and pull requests: `make gate`, including the schema and
   drift tests;
-- **e2e** on pushes to `main` and manual dispatch: `make test` through Envoy +
-  ext_proc.
+- **e2e** on pushes to `main` and manual dispatch: `make test` (development
+  headers) and `make test-signed` (signed bundle + signed identity) through
+  Envoy + ext_proc.
 
 CI checks out `controls-core` next to this repository; set the repository
 variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
@@ -241,7 +281,9 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 
 - The bundle in `controls/` is a **local fixture**; production rules come from
   the central `controls-rules` pipeline and are signed. `allowUnsigned: true`
-  must never ship.
+  is development-only; `make signed` demonstrates the signed path, but locally
+  generated keys are not production custody. Production keeps the private key
+  in Jenkins credentials or an HSM and mounts only the public key.
 - The PIP fixture is in-memory. Production PIPs use curated read-replica
   queries, mTLS and caller checks (guide phases 5 and 7).
 - The app port is unpublished; a NetworkPolicy should admit the gateway only

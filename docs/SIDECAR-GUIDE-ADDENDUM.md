@@ -4,6 +4,10 @@ Status: findings from implementing `party-mastering-service` against
 `controls-core` **v0.38.3** and
 [`SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md) on 2026-11-08.
 
+**Coverage note.** The guide's phase 5 (signed identity) and phase 7 (signed
+bundle) are exercised in this repo by `make test-signed`; they are not gaps.
+Only the findings below required workarounds or are deferred upstream.
+
 **No `controls-core` code was changed for this repository.** Every item below
 is either (a) a workaround contained in this repo, or (b) a deferred upstream
 action. The purpose of this document is to make the next adoption cheaper and

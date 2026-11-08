@@ -1,0 +1,23 @@
+server:
+  listen: ":50051"
+  metricsAddr: ":9090"
+bundle:
+  path: /etc/controls/bundle
+  # Signed mode: only the public key is mounted; the private key stays on the
+  # signing host (a real pipeline keeps it in Jenkins credentials or an HSM).
+  pubKey: /etc/controls/keys/bundle-signing.pub.pem
+  allowUnsigned: false
+  reloadInterval: 30s
+pip:
+  apiVersion: "1.0"
+  url: http://pip:8082
+  timeout: 100ms
+  defaultTTL: 30s
+  maxTTL: 5m
+identity:
+  hmacKey: env:CONTROLS_IDENTITY_HMAC_KEY
+  maxSkew: 60s
+audit:
+  sample: 1
+  buffer: 0
+  salt: party-mastering-signed-local-salt

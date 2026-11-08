@@ -16,11 +16,16 @@ MVN_ARGS ?=
 DOCKER_BUILDKIT ?= 0
 
 TMP := $(CURDIR)/.tmp
+SIGNED_DIR := $(TMP)/signed
 SIDECAR_IMAGE ?= party-mastering-sidecar:dev
 APP_IMAGE ?= party-mastering-app:dev
 PIP_IMAGE ?= party-mastering-pip:dev
 
-.PHONY: registry schema gate test up down logs
+# Local-only gateway key for signed mode. Production takes this from the
+# gateway secret store, never from a Makefile.
+IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
+
+.PHONY: registry schema gate images up signed test test-signed down logs logs-signed
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -49,8 +54,8 @@ gate:
 		-bundle ../party-mastering-service/controls \
 		-pip-fixture ../party-mastering-service/pip/attributes.json
 
-## Build the local images and start app + PIP + Envoy/ext_proc.
-up:
+## Build the app, PIP and Envoy/ext_proc images.
+images:
 	mkdir -p $(TMP)
 	cd $(CONTROLS_CORE) && CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) go build -o $(TMP)/extproc ./sidecar/cmd/extproc
 	cd $(CONTROLS_CORE) && CGO_ENABLED=0 GOOS=linux GOARCH=$(GOARCH) go build -o $(TMP)/pip ./pip/cmd/pip
@@ -60,14 +65,49 @@ up:
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build -f Dockerfile -t $(APP_IMAGE) .
 	DOCKER_BUILDKIT=$(DOCKER_BUILDKIT) docker build --build-arg PIP_BIN=.tmp/pip \
 		-f pip/Dockerfile -t $(PIP_IMAGE) .
+
+## Development stack: raw gateway-stand-in headers, unsigned local bundle.
+up: images
 	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose up -d
 
-## One-shot: gates, images, compose, contract tests, teardown.
+## Signed stack: render + Ed25519-sign a bundle, then require HMAC identity.
+signed: images
+	rm -rf $(SIGNED_DIR)
+	mkdir -p $(SIGNED_DIR)/src/policies $(SIGNED_DIR)/src/mask-policies \
+		$(SIGNED_DIR)/src/registry $(SIGNED_DIR)/src/dq
+	cp controls/rules.json $(SIGNED_DIR)/src/policies/rules.json
+	cp controls/mask-policies.json $(SIGNED_DIR)/src/mask-policies/mask-policies.json
+	cp controls/registry.json $(SIGNED_DIR)/src/registry/party-mastering.json
+	cp controls/dq.json $(SIGNED_DIR)/src/dq/dq.json
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/bundle \
+		-src $(SIGNED_DIR)/src \
+		-service $(SERVICE) \
+		-out $(SIGNED_DIR)/bundle
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/bundle-keygen \
+		-out $(SIGNED_DIR)/keys
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/bundle-sign \
+		-bundle $(SIGNED_DIR)/bundle \
+		-key $(SIGNED_DIR)/keys/bundle-signing.pem
+	cd $(CONTROLS_CORE) && $(GO) run ./tools/bundle-sign \
+		-bundle $(SIGNED_DIR)/bundle \
+		-verify \
+		-pubkey $(SIGNED_DIR)/keys/bundle-signing.pub.pem
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml up -d
+
+## One-shot: gates, images, compose, development contract tests, teardown.
 test: gate up
 	./test.sh
 
+## One-shot: gates, signed bundle, signed identity, contract tests, teardown.
+test-signed: gate signed
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) ./test-signed.sh
+
 down:
 	docker compose down -v
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml down -v
 
 logs:
 	docker compose logs -f
+
+logs-signed:
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml logs -f

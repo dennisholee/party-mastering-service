@@ -203,3 +203,58 @@ while developing:
 The local bundle is intentionally unsigned (`allowUnsigned: true`) and uses raw
 identity headers. Neither is acceptable in production; see the README's
 production notes.
+
+## 8. Signed mode
+
+The development stack (`compose.yaml`) uses raw gateway-stand-in headers and
+`allowUnsigned: true`. The signed stack exercises the production path:
+
+```bash
+make test-signed
+```
+
+What `make signed` (and therefore `make test-signed`) does:
+
+1. copies `controls/` into the pipeline source layout
+   (`.tmp/signed/src/{policies,mask-policies,registry,dq}`);
+2. renders a bundle with `tools/bundle -service party-mastering`, producing
+   `manifest.json` with a digest;
+3. generates an Ed25519 key pair with `tools/bundle-keygen`;
+4. signs `manifest.sig` with `tools/bundle-sign` and verifies it;
+5. starts `compose.signed.yaml` on `:18008` with
+   `sidecar.signed.yaml`: `allowUnsigned: false`, the public key mounted, and
+   `CONTROLS_IDENTITY_HMAC_KEY` set;
+6. runs `test-signed.sh`.
+
+Only the public key is mounted into the sidecar. The private key stays under
+`.tmp/signed/keys/` on the host and is never added to the container or git.
+
+`sidecar.signed.yaml` requires the signed `x-controls-identity` envelope:
+
+```
+base64url({"sub": "...", "claims": {...}, "iat": <epoch>})
+  + "." +
+base64url(HMAC-SHA256(payload, CONTROLS_IDENTITY_HMAC_KEY))
+```
+
+Mint one locally:
+
+```bash
+export CONTROLS_IDENTITY_HMAC_KEY=party-mastering-local-identity-key-change-me
+TOKEN=$(python3 tools/sign_identity.py \
+  --subject u-steward-us --claim role=data-steward --claim region=US)
+curl -s -H "x-controls-identity: $TOKEN" http://127.0.0.1:18008/parties/PTY-1001 | jq
+```
+
+In signed mode:
+
+- raw `x-subject` / `x-claim-*` headers are ignored, not merged;
+- a missing, malformed, expired or wrongly signed envelope is
+  `403 identity_untrusted`;
+- an unsigned or tampered bundle prevents the extension from starting, so
+  Envoy fails closed;
+- decision logs carry the rendered bundle version/digest.
+
+The key in the Makefile is a local demo value. Production takes the HMAC key
+from the gateway secret store and the bundle private key from Jenkins
+credentials or an HSM; neither belongs in this repository.
