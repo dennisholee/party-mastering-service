@@ -27,7 +27,7 @@ STUB_IMAGE ?= party-mastering-stubpip:dev
 # gateway secret store, never from a Makefile.
 IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
 
-.PHONY: registry schema docs-check conformance gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture guide-smoke down logs logs-signed logs-lag logs-lag-fixture
+.PHONY: registry schema docs-check eol-check conformance gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture guide-smoke down logs logs-signed logs-lag logs-lag-fixture
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -44,6 +44,9 @@ schema:
 docs-check:
 	$(PYTHON) tools/docs_check.py
 
+eol-check:
+	./tools/eol_check.sh
+
 ## Engine-level conformance fixtures against the committed bundle.
 conformance:
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/conformance \
@@ -53,7 +56,7 @@ conformance:
 
 ## Build-time gates: Java tests + registry drift + OpenAPI coverage + bundle checks.
 ## Requires a sibling controls-core checkout (or CONTROLS_CORE=...).
-gate: docs-check
+gate: docs-check eol-check
 	$(MVN) $(MVN_ARGS) -q test
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/openapi-registry -check \
 		-openapi ../party-mastering-service/openapi.yaml \
