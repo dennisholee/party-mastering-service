@@ -1,6 +1,7 @@
 SHELL := /bin/bash
 
 CONTROLS_CORE ?= ../controls-core
+export CONTROLS_CORE
 SERVICE ?= party-mastering
 
 GO ?= go
@@ -19,7 +20,7 @@ SIDECAR_IMAGE ?= party-mastering-sidecar:dev
 APP_IMAGE ?= party-mastering-app:dev
 PIP_IMAGE ?= party-mastering-pip:dev
 
-.PHONY: registry gate test up down logs
+.PHONY: registry schema gate test up down logs
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -27,6 +28,10 @@ registry:
 		-openapi ../party-mastering-service/openapi.yaml \
 		-service $(SERVICE) \
 		-out ../party-mastering-service/controls/registry.json
+
+## Validate the control fixtures against controls-core/contracts.
+schema:
+	$(MVN) $(MVN_ARGS) -q -Dtest=ControlsSchemaTest test
 
 ## Build-time gates: Java tests + registry drift + OpenAPI coverage + bundle checks.
 ## Requires a sibling controls-core checkout (or CONTROLS_CORE=...).

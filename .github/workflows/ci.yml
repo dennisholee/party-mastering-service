@@ -1,0 +1,103 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CONTROLS_CORE: ${{ github.workspace }}/controls-core
+
+jobs:
+  gate:
+    name: Build, drift and schema gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Require CONTROLS_CORE_REPOSITORY
+        if: ${{ vars.CONTROLS_CORE_REPOSITORY == '' }}
+        run: |
+          echo "Set the repository variable CONTROLS_CORE_REPOSITORY to owner/controls-core." >&2
+          exit 1
+
+      - name: Check out party-mastering-service
+        uses: actions/checkout@v4
+        with:
+          path: party-mastering-service
+
+      - name: Check out controls-core
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CONTROLS_CORE_REPOSITORY }}
+          path: controls-core
+          token: ${{ secrets.CONTROLS_CORE_TOKEN || github.token }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: party-mastering-service/pom.xml
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: controls-core/go.sum
+
+      - name: Gates
+        working-directory: party-mastering-service
+        run: make gate
+
+  e2e:
+    name: Envoy/ext_proc contract tests
+    if: ${{ github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Require CONTROLS_CORE_REPOSITORY
+        if: ${{ vars.CONTROLS_CORE_REPOSITORY == '' }}
+        run: |
+          echo "Set the repository variable CONTROLS_CORE_REPOSITORY to owner/controls-core." >&2
+          exit 1
+
+      - name: Check out party-mastering-service
+        uses: actions/checkout@v4
+        with:
+          path: party-mastering-service
+
+      - name: Check out controls-core
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ vars.CONTROLS_CORE_REPOSITORY }}
+          path: controls-core
+          token: ${{ secrets.CONTROLS_CORE_TOKEN || github.token }}
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: party-mastering-service/pom.xml
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+          cache-dependency-path: controls-core/go.sum
+
+      - name: Contract tests through Envoy
+        working-directory: party-mastering-service
+        run: make test

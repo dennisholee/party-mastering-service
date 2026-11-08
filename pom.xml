@@ -37,6 +37,19 @@
       <version>2.2.30</version>
     </dependency>
     <dependency>
+      <groupId>com.networknt</groupId>
+      <artifactId>json-schema-validator</artifactId>
+      <version>1.5.8</version>
+      <scope>test</scope>
+      <exclusions>
+        <!-- Only JSON documents are validated; avoid a second Jackson minor. -->
+        <exclusion>
+          <groupId>com.fasterxml.jackson.dataformat</groupId>
+          <artifactId>jackson-dataformat-yaml</artifactId>
+        </exclusion>
+      </exclusions>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>

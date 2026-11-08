@@ -257,7 +257,9 @@ only `res.Errors` fail the command.
 
 **Impact.** This is a security-relevant gate gap. A typo in `ssn`, `pan` or a
 nested path means the response is returned unmasked, while the pipeline is
-green. The end-to-end tests only catch paths they assert.
+green. The end-to-end tests only catch paths they assert. Schema validation does
+not close this gap either: a JSON schema for the registry cannot know which
+fields a response will contain.
 
 **Workaround here.** `test.sh` asserts exact outputs for every masked field
 (`ssn`, `taxId`, `dateOfBirth`, email, phone, document number, merge source
@@ -356,7 +358,8 @@ generated file and the contract.
 **Workaround here.** All operation ids are kebab-case (`get-party`,
 `update-party`, `merge-party`, `search-parties`). OpenAPI Generator still
 produces the expected Java methods (`getParty`, `updateParty`, …). The drift
-test pins the ids.
+test pins the ids, and `ControlsSchemaTest` validates the committed registry
+against `registry.schema.json`, so an id-casing regression now fails the build.
 
 **Proposed upstream action.** Either normalize `operationId` to kebab-case in
 the generator (and document the mapping), or relax the schema/SPEC to allow

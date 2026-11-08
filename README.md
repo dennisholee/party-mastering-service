@@ -26,6 +26,7 @@ The application implements business mastering only.
 (Envoy 1.40 + ext_proc) with `make test` green:
 
 - Java build and generated-code contract tests;
+- registry schema validation against `controls-core/contracts`;
 - registry drift, OpenAPI coverage and bundle checks;
 - real Envoy + ext_proc contract tests for allow, deny, masking, DQ, rejected
   fields, self-description, unregistered routes and PIP outage.
@@ -96,7 +97,8 @@ Prerequisites:
 
 ```bash
 mvn verify          # generate API/models, compile, run contract tests
-make gate           # registry drift + openapi-diff + controls-check
+make schema         # validate registry/mask fixtures against controls-core contracts
+make gate           # schema + registry drift + openapi-diff + controls-check
 make test           # gate, build images, compose, end-to-end contract test, teardown
 ```
 
@@ -132,6 +134,12 @@ stand-in. Production requires the signed `x-controls-identity` envelope
 | `x-subject: u-2` or no identity | `403` default deny |
 
 ## What the contract test covers
+
+The Maven tests validate the contract in two layers: `RegistryContractTest`
+compares every annotation binding with the committed registry, and
+`ControlsSchemaTest` validates `registry.json` and `mask-policies.json` against
+the normative schemas in `controls-core/contracts` (skipped when the sibling
+checkout is absent; always present in `make gate` and CI).
 
 `test.sh` runs through Envoy + ext_proc (not against the engine directly):
 
@@ -174,8 +182,10 @@ envoy/envoy.yaml             Envoy listener/cluster/ext_proc config
 sidecar.yaml                 sidecar runtime config (unsigned local bundle)
 compose.yaml                 app + PIP + sidecar
 test.sh                      end-to-end contract test
+.github/workflows/ci.yml     CI: gate on PR, end-to-end on main/manual
+ci/README.md                 CI variables and local equivalents
 src/main/java/...            delegate, service, repository, error handler
-src/test/java/...            registry drift, ignore-filter, MockMvc tests
+src/test/java/...            registry/schema/drift tests, ignore-filter, MockMvc
 docs/                        domain, controls, guide addendum
 ```
 
@@ -197,6 +207,9 @@ application entrypoint is intentionally the generated one to avoid a duplicate
 The generated API is never edited. `RegistryContractTest` fails the build when
 the committed registry drifts from the annotations, including action, source,
 attribute projection, freshness, masking and self-description bindings.
+`ControlsSchemaTest` additionally validates the committed fixtures against
+`registry.schema.json` and `mask-policy.schema.json`, so an id-casing or
+attribute-shape mistake fails locally and in CI.
 
 ## Guide phase mapping
 
@@ -207,9 +220,22 @@ attribute projection, freshness, masking and self-description bindings.
 | 3 — policy/DQ ownership | `controls/` fixtures are delivery-owned; service owns only annotations and registry |
 | 4 — package/deploy | `Dockerfile`, `sidecar/Dockerfile`; production uses the Helm library |
 | 5 — identity and PIP | raw headers locally; PIP contract `1.0`, mTLS/keys in production |
-| 6 — test | `mvn verify`, `make gate`, `make test` |
+| 6 — test | `mvn verify`, `make schema`, `make gate`, `make test` |
 | 7 — rollout | not automated; signed bundle + canary are production concerns |
 | 8 — operate | decision logs and metrics from the sidecar; alert on PIP/DQ/stale/bundle |
+
+## CI
+
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml) runs:
+
+- **gate** on pushes and pull requests: `make gate`, including the schema and
+  drift tests;
+- **e2e** on pushes to `main` and manual dispatch: `make test` through Envoy +
+  ext_proc.
+
+CI checks out `controls-core` next to this repository; set the repository
+variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
+`CONTROLS_CORE_TOKEN` secret. See [`ci/README.md`](ci/README.md).
 
 ## Non-goals and production notes
 
@@ -232,6 +258,7 @@ attribute projection, freshness, masking and self-description bindings.
 - [Party domain model](docs/DOMAIN.md)
 - [Controls: routes, entitlements, masks and DQ](docs/CONTROLS.md)
 - [Sidecar guide addendum and outstanding actions](docs/SIDECAR-GUIDE-ADDENDUM.md)
+- [CI setup](ci/README.md)
 - [Sidecar adoption guide](../controls-core/docs/SIDECAR-GUIDE.md)
 - [Registry specification](../controls-core/contracts/SPEC-registry.md)
 - [Mask operations specification](../controls-core/contracts/SPEC-mask-ops.md)
