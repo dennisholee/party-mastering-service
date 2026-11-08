@@ -18,7 +18,8 @@ The application implements business mastering only.
 > `controls-core` checkout for the sidecar tools/binaries but does not modify
 > it. Where the adoption guide was incomplete, the gap and the deferred
 > upstream action are recorded in
-> [`docs/SIDECAR-GUIDE-ADDENDUM.md`](docs/SIDECAR-GUIDE-ADDENDUM.md).
+> [`docs/GUIDE-COVERAGE.md`](docs/GUIDE-COVERAGE.md) (current) and the
+> [archived adoption findings](docs/archive/ADOPTION-FINDINGS-2026-11-08.md).
 
 ## Status
 
@@ -358,7 +359,7 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
   images by digest.
 - The `x-controls-ignore`, DQ action/endpoint-scoping, mask-path and
   DQ-compilation gate gaps are fixed in the workspace `controls-core` checkout
-  and recorded in [`docs/SIDECAR-GUIDE-ADDENDUM.md`](docs/SIDECAR-GUIDE-ADDENDUM.md).
+  and recorded in [`docs/archive/ADOPTION-FINDINGS-2026-11-08.md`](docs/archive/ADOPTION-FINDINGS-2026-11-08.md).
   The demo no longer needs its earlier filtered-spec or `partyMerge`
   workarounds.
 
@@ -366,8 +367,8 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 
 - [Party domain model](docs/DOMAIN.md)
 - [Controls: routes, entitlements, masks and DQ](docs/CONTROLS.md)
-- [Sidecar guide addendum and outstanding actions](docs/SIDECAR-GUIDE-ADDENDUM.md)
 - [Guide coverage matrix](docs/GUIDE-COVERAGE.md)
+- [Archived adoption findings](docs/archive/ADOPTION-FINDINGS-2026-11-08.md)
 - [CI setup](ci/README.md)
 - [Sidecar adoption guide](../controls-core/docs/SIDECAR-GUIDE.md)
 - [Registry specification](../controls-core/contracts/SPEC-registry.md)
