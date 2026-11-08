@@ -114,57 +114,6 @@
         "op": "eq",
         "value": "BLOCKED"
       }
-    },
-    {
-      "id": "partyMerge.write.steward",
-      "effect": "allow",
-      "resourceType": "partyMerge",
-      "action": "write",
-      "when": {
-        "all": [
-          {
-            "field": "subject.claims.role",
-            "op": "eq",
-            "value": "data-steward"
-          },
-          {
-            "field": "subject.claims.region",
-            "op": "eq",
-            "value": "$resource.region"
-          }
-        ]
-      }
-    },
-    {
-      "id": "partyMerge.write.compliance",
-      "effect": "allow",
-      "resourceType": "partyMerge",
-      "action": "write",
-      "when": {
-        "all": [
-          {
-            "field": "subject.claims.role",
-            "op": "eq",
-            "value": "compliance"
-          },
-          {
-            "field": "subject.claims.clearance",
-            "op": "eq",
-            "value": "high"
-          }
-        ]
-      }
-    },
-    {
-      "id": "partyMerge.write.blocked",
-      "effect": "deny",
-      "resourceType": "partyMerge",
-      "action": "write",
-      "when": {
-        "field": "resource.status",
-        "op": "eq",
-        "value": "BLOCKED"
-      }
     }
   ]
 }

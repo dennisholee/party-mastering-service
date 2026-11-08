@@ -39,6 +39,11 @@ class ControlsSchemaTest {
         validate("mask-policies.json", "mask-policy.schema.json");
     }
 
+    @Test
+    void dqRulesMatchContractSchema() throws Exception {
+        validate("dq.json", "dq.schema.json");
+    }
+
     private void validate(String document, String schemaFile) throws Exception {
         Path core = Path.of(System.getenv().getOrDefault("CONTROLS_CORE", "../controls-core"))
             .toAbsolutePath().normalize();

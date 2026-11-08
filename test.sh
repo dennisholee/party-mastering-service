@@ -165,6 +165,24 @@ code=$(req PUT "/parties/PTY-1001" "$OUT" \
 assert_code 403 "$code" "invalid email must be blocked by DQ"
 assert_reason dq_blocking:party.contactPoints.email.format "$OUT" "email DQ"
 
+cat > "$TMP/dq-missing-name.json" <<'JSON'
+{"legalName":{"lastName":"Doe"},"dateOfBirth":"1984-07-12","contactPoints":{"email":{"value":"janet.doe@example.com"},"phone":{"value":"+1-415-555-0142"}},"segment":"PREMIER","changeReason":"CUSTOMER_REQUEST","version":2}
+JSON
+code=$(req PUT "/parties/PTY-1001" "$OUT" \
+  -H 'x-subject: u-steward-us' -H 'x-claim-role: data-steward' -H 'x-claim-region: US' \
+  -H 'content-type: application/json' --data-binary @"$TMP/dq-missing-name.json")
+assert_code 403 "$code" "missing required first name must be blocked by DQ"
+assert_reason dq_blocking:party.legalName.firstName.required "$OUT" "required first name"
+
+cat > "$TMP/dq-bad-address.json" <<'JSON'
+{"legalName":{"firstName":"Janet","lastName":"Doe"},"dateOfBirth":"1984-07-12","contactPoints":{"email":{"value":"janet.doe@example.com"},"phone":{"value":"+1-415-555-0142"}},"addresses":[{"type":"HOME","line1":"1 Market St","city":"San Francisco","administrativeArea":"CA","postalCode":"94105","country":"USA"}],"segment":"PREMIER","changeReason":"CUSTOMER_REQUEST","version":2}
+JSON
+code=$(req PUT "/parties/PTY-1001" "$OUT" \
+  -H 'x-subject: u-steward-us' -H 'x-claim-role: data-steward' -H 'x-claim-region: US' \
+  -H 'content-type: application/json' --data-binary @"$TMP/dq-bad-address.json")
+assert_code 403 "$code" "invalid array country must be blocked by DQ"
+assert_reason dq_blocking:party.addresses.country.format "$OUT" "array country DQ"
+
 cat > "$TMP/dq-bad-segment.json" <<'JSON'
 {"legalName":{"firstName":"Janet","lastName":"Doe"},"dateOfBirth":"1984-07-12","contactPoints":{"email":{"value":"janet.doe@example.com"},"phone":{"value":"+1-415-555-0142"}},"segment":"GOLD","changeReason":"CUSTOMER_REQUEST","version":2}
 JSON

@@ -48,7 +48,7 @@ gate:
 		-service $(SERVICE) \
 		-out ../party-mastering-service/controls/registry.json
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/openapi-diff \
-		-openapi ../party-mastering-service/target/controlled-openapi.yaml \
+		-openapi ../party-mastering-service/openapi.yaml \
 		-registry ../party-mastering-service/controls/registry.json
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/controls-check \
 		-openapi ../party-mastering-service/openapi.yaml \

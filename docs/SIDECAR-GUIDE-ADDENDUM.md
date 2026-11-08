@@ -1,33 +1,40 @@
 # Sidecar adoption guide — addendum and outstanding actions
 
 Status: findings from implementing `party-mastering-service` against
-`controls-core` **v0.38.3** and
-[`SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md) on 2026-11-08.
+`controls-core` **v0.38.3** plus the P0/P1 fixes applied on 2026-11-08
+(unreleased), and
+[`SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md).
 
 **Coverage note.** The guide's phase 5 (signed identity) and phase 7 (signed
 bundle) are exercised in this repo by `make test-signed`; they are not gaps.
 Only the findings below required workarounds or are deferred upstream.
 
-**No `controls-core` code was changed for this repository.** Every item below
-is either (a) a workaround contained in this repo, or (b) a deferred upstream
-action. The purpose of this document is to make the next adoption cheaper and
-to give the controls team a concrete, reproducible backlog.
+**The P0/P1 fixes below were applied to the workspace `controls-core`
+checkout (unreleased).** This demo repository vendors none of that code; it
+consumes the sibling checkout. Every item is now either (a) fixed upstream and
+removed from the demo's workarounds, (b) mitigated locally, or (c) still
+deferred. The purpose of this document is to keep the evidence and the
+remaining backlog reproducible.
 
 ## 1. Summary
 
-| ID | Area | Severity | Finding |
-|---|---|---|---|
-| G1 | `openapi-diff` | High | `x-controls-ignore` is honoured by `openapi-registry` but not by `openapi-diff`; the guide's own gate fails on a deliberately excluded route |
-| G2 | DQ engine | High | DQ is evaluated against every request body, so a `required` rule on a resource type with a `GET` denies the read |
-| G3 | `controls-check` | High | DQ fields are validated against one request schema per resource type; two write journeys on one type fail against the wrong schema |
-| G4 | DQ contract/gate | High | DQ array paths pass `controls-check` but the extension rejects them at runtime; the gate does not compile DQ rules |
-| G5 | Masking gate | High | A mask-policy path that does not exist in the response schema is only a warning; the gate still exits 0 and PII may be returned unmasked |
-| G6 | Mask validation | Medium | A bare `partial` (no keep parameters) is accepted, although the mask spec says it is a validation error |
-| G7 | OpenAPI generator | Medium | `allowNonJSON` exists in the registry schema/runtime but has no OpenAPI extension, so it cannot be generated |
-| G8 | Registry contract | Medium | SPEC/schema require kebab-case endpoint ids, the guide example is camelCase, and the generator copies `operationId` verbatim |
-| G9 | `openapi-diff` | Medium | Annotation parity checks only four fields; action, attributes, freshness, self-description and mask-error bindings are not compared |
-| G10 | PIP fixtures | Medium | The local PIP fixture cannot express per-resource lag, unknown lag or version, so the stale/unknown DQ-of-freshness tests cannot be run locally |
-| D1–D5 | Guide text | Low | Command lines, `both` source semantics, DQ authoring, cached PIP outages and the drift-test template are underspecified |
+| ID | Area | Severity | Finding | Status |
+|---|---|---|---|---|
+| G1 | `openapi-diff` | High | `x-controls-ignore` is honoured by `openapi-registry` but not by `openapi-diff`; the guide's own gate fails on a deliberately excluded route | **Fixed** |
+| G2 | DQ engine | High | DQ is evaluated against every request body, so a `required` rule on a resource type with a `GET` denies the read | **Fixed** |
+| G3 | `controls-check` | High | DQ fields are validated against one request schema per resource type; two write journeys on one type fail against the wrong schema | **Fixed** |
+| G4 | DQ contract/gate | High | DQ array paths pass `controls-check` but the extension rejects them at runtime; the gate does not compile DQ rules | **Fixed** |
+| G5 | Masking gate | High | A mask-policy path that does not exist in the response schema is only a warning; the gate still exits 0 and PII may be returned unmasked | **Fixed** |
+| G6 | Mask validation | Medium | A bare `partial` (no keep parameters) is accepted, although the mask spec says it is a validation error | **Fixed** |
+| G7 | OpenAPI generator | Medium | `allowNonJSON` exists in the registry schema/runtime but has no OpenAPI extension, so it cannot be generated | **Fixed** |
+| G8 | Registry contract | Medium | SPEC/schema require kebab-case endpoint ids, the guide example is camelCase, and the generator copies `operationId` verbatim | **Fixed** |
+| G9 | `openapi-diff` | Medium | Annotation parity checks only four fields; action, attributes, freshness, self-description and mask-error bindings are not compared | **Fixed** |
+| G10 | PIP fixtures | Medium | The local PIP fixture cannot express per-resource lag, unknown lag or version, so the stale/unknown DQ-of-freshness tests cannot be run locally | **Fixed** |
+| D1–D5 | Guide text | Low | Command lines, `both` source semantics, DQ authoring, cached PIP outages and the drift-test template are underspecified | **Fixed** |
+
+**Fixed** means implemented in the workspace `controls-core` checkout
+(unreleased) with regression tests; the corresponding demo workaround was
+removed or updated. **Open** items remain deferred.
 
 How to read each finding:
 
@@ -64,25 +71,14 @@ ignored route from the contract (losing documentation) or it fails its own
 coverage gate. Hand-editing an extra registry entry would defeat the
 default-deny intent.
 
-**Workaround here.** `IgnoreAwareSpecTest` writes an ignore-filtered copy of
-the contract to `target/controlled-openapi.yaml`; the Makefile runs
-`openapi-diff` against that copy and keeps the committed registry untouched.
-See [`src/test/java/com/example/party/IgnoreAwareSpecTest.java`](../src/test/java/com/example/party/IgnoreAwareSpecTest.java)
-and the `gate` target in [`Makefile`](../Makefile). The raw contract remains
-the source of truth for code generation and for `controls-check`.
+**Resolution.** `openapidiff.Check` now skips operations with
+`x-controls-ignore: true`; regression tests cover both the skipped route and
+the case where an ignored route is wrongly present in the registry. The demo's
+`IgnoreAwareSpecTest` and filtered `target/controlled-openapi.yaml` were
+deleted, and `make gate` runs `openapi-diff` on the raw `openapi.yaml`.
 
-**Proposed upstream action.**
-
-1. Skip operations with `x-controls-ignore: true` in
-   `openapidiff.Check` (or add `-honor-ignore`, default on).
-2. Add a test fixture with one ignored and one controlled operation; expected
-   result: no `MissingRegistry` for the ignored route.
-3. Once released, delete `IgnoreAwareSpecTest` and point `gate` at
-   `openapi.yaml` again.
-
-**Acceptance:** raw `openapi-diff` on a contract containing
-`x-controls-ignore` exits 0, and an ignored route still produces
-`403 unregistered_endpoint` at the sidecar.
+**Acceptance met:** raw `openapi-diff` on the demo contract exits 0, and
+`GET /parties` still produces `403 unregistered_endpoint` at the sidecar.
 
 ---
 
@@ -117,28 +113,15 @@ Removing the rule restored `200`. The rule was not committed.
 rules, which is the most common data-quality check. Silent alternatives
 (non-blocking `required`) pollute decision logs and metrics on every read.
 
-**Workaround here.**
+**Resolution.** `config.DQRule` now carries an optional `action`
+(`read|write|delete|*`), applied by `dq.Evaluator.Check`. The demo's DQ rules
+are scoped to `write` and now include required first/last name rules. A `GET`
+with no body still returns `200`; a `PUT` missing `legalName.firstName`
+returns `403 dq_blocking:party.legalName.firstName.required`. `controls-check`
+also rejects an action that is not registered for the rule's resource type.
 
-- No `required` rules on `party`; presence/requiredness is enforced by the
-  OpenAPI schema and Bean Validation, so the application returns
-  `400 validation_failed` before mastering state changes.
-- DQ owns value quality on writes: date format, email/phone shape, segment
-  enum, version type, change-reason pattern, advisory length.
-- `docs/CONTROLS.md` §5 records the constraint explicitly.
-
-**Proposed upstream action.**
-
-1. Add an action/method scope to `config.DQRule` (`action: read|write|*`, or
-   `methods: [PUT, PATCH, POST]`), applied in `dq.Evaluator.Check`.
-2. Alternatively, evaluate `required` only when the request carried a body
-   (and keep value rules evaluating on any present field).
-3. Add a regression test: `GET` and `PUT` on the same resource type; the
-   required rule applies only to `PUT`.
-4. Document the chosen semantics in the guide and a DQ contract.
-
-**Acceptance:** a required DQ rule on `party` does not deny
-`GET /parties/{id}`, but still denies a `PUT` missing that field with
-`dq_blocking:<rule>`.
+**Acceptance met:** a write-scoped required rule does not deny
+`GET /parties/{id}`, but still denies a `PUT` missing that field.
 
 ---
 
@@ -148,12 +131,10 @@ rules, which is the most common data-quality check. Silent alternatives
 resolve" and phase 1 owns "route/resource binding". It does not state that only
 one write journey per resource type is supported.
 
-**Evidence.** `controlscheck.Validate` collects endpoints by resource type
-([`internal/controlscheck/check.go`](../../controls-core/internal/controlscheck/check.go))
-and `requestSchema` returns the **first** endpoint's JSON request body
-([same file](../../controls-core/internal/controlscheck/check.go)). With the
-merge journey initially registered as resource type `party` (as the domain
-suggests), the gate checked the update DQ rules against the merge body:
+**Evidence.** `controlscheck.Validate` collected endpoints by resource type and
+`requestSchema` returned the **first** endpoint's JSON request body. With the
+merge journey initially registered as resource type `party`, the gate checked
+the update DQ rules against the merge body:
 
 ```text
 error: dq rule "party.dateOfBirth.format" field "dateOfBirth" not in request schema
@@ -165,27 +146,18 @@ error: dq rule "party.segment.allowed" field "segment" not in request schema
 **Impact.** A service with more than one write body per resource type cannot
 keep `controls-check` green without either weakening DQ or distorting the
 resource model. This is common in mastering services (update, merge, consent,
-address change), so it will block real adopters.
+address change), so it would block real adopters.
 
-**Workaround here.** The merge journey is registered under the control scope
-`partyMerge` (`x-resource-type: partyMerge`) with the same PIP attributes and
-its own entitlement/DQ rules. `party` now has one write body (`PUT`), so the
-gate validates each rule against its real schema. This is documented in
-`docs/CONTROLS.md` §2 as a **control-scope split, not a second entity**.
+**Resolution.** `config.DQRule` now accepts an optional `endpoint` (registry
+entry id) in addition to `action`. `controls-check` validates an
+endpoint-scoped rule against that endpoint's own JSON request schema, and
+checks that the rule's resource type and action agree with the endpoint. The
+demo's update rules target `update-party` and its merge rules target
+`merge-party`, both under the `party` resource type; the duplicated
+`partyMerge` scope, PIP fixture and entitlement rules were removed.
 
-**Proposed upstream action.**
-
-1. Make `controls-check` validate DQ per endpoint (or per operation) using the
-   endpoint's own request schema, not the first one for the resource type.
-2. If per-endpoint validation is undesirable, add an explicit `operation`/`id`
-   field to DQ rules so the scope is unambiguous.
-3. Document the "one request schema per resource type" constraint until fixed,
-   with the `partyMerge` pattern as an example.
-
-**Acceptance:** a bundle with two `POST`/`PUT` journeys on one resource type,
-each with different DQ fields, passes `controls-check`.
-
----
+**Acceptance met:** a bundle with two write journeys on one resource type, each
+with different DQ fields, passes `controls-check`.
 
 ### G4 — DQ array paths pass the gate but fail at runtime (High)
 
@@ -219,23 +191,15 @@ patterns, `type` values or `maxLength` values; those checks live only in
 closed or refuse to start. Array fields cannot be DQ-validated even though they
 can be masked.
 
-**Workaround here.** DQ targets only scalar or nested-object paths
-(`legalName.middleName`, `contactPoints.email.value`, `dateOfBirth`, …).
-Array-level validation is delegated to the OpenAPI schema and the application.
-The end-to-end test asserts the supported rules.
+**Resolution.** `controlscheck.Validate` compiles the DQ rules with
+`dq.New`, so unknown operators, invalid regexes and malformed paths fail
+`controls-check` instead of passing the gate. `dq` now resolves `[*]` array
+wildcards: a rule evaluates every element, and `required` treats a missing or
+empty array as a violation. The demo adds
+`party.addresses.country.format` on `addresses[*].country`.
 
-**Proposed upstream action.**
-
-1. `controls-check` should call `dq.New` (or an equivalent compiled validation)
-   so operator/pattern/wildcard errors fail the gate.
-2. Add wildcard support to DQ evaluation (`addresses[*].country`) and to
-   `controls-check`'s path resolution.
-3. Until then, document the array limitation in the guide and a DQ contract.
-4. Add negative gate fixtures: unknown op, invalid regex, wildcard path.
-
-**Acceptance:** a DQ rule with `[*]` either works end-to-end or fails
-`controls-check` with a clear message — never passes the gate and then fails at
-runtime.
+**Acceptance met:** a DQ rule with `[*]` works end-to-end and is validated by
+`controls-check`.
 
 ---
 
@@ -265,20 +229,13 @@ green. The end-to-end tests only catch paths they assert. Schema validation does
 not close this gap either: a JSON schema for the registry cannot know which
 fields a response will contain.
 
-**Workaround here.** `test.sh` asserts exact outputs for every masked field
-(`ssn`, `taxId`, `dateOfBirth`, email, phone, document number, merge source
-id). That catches regressions in the demo, but it is not a substitute for a
-gate.
+**Resolution.** `controlscheck.Validate` now treats a mask field that does not
+exist in the response schema as an error. A regression test renames `ssn` to
+`ssnTypo` and requires a failure. `test.sh` still asserts the exact outputs, so
+a runtime masking regression is also caught.
 
-**Proposed upstream action.**
-
-1. Treat a missing mask path as an error by default (or under `-strict`).
-2. Add a negative fixture with a typo; expected exit 1.
-3. Consider validating `rejectFields` and `fallback`/classification paths the
-   same way.
-
-**Acceptance:** a mask policy referencing a non-existent response field fails
-`controls-check`.
+**Acceptance met:** a mask policy referencing a non-existent response field
+fails `controls-check`.
 
 ---
 
@@ -299,15 +256,12 @@ suffix 0), rather than rejecting the bundle.
 a non-sensitive journey) instead of a configuration error. It also makes the
 "partial must never be an ambiguous default" promise untrue.
 
-**Workaround here.** Every `partial` rule in `controls/mask-policies.json`
-sets `keepPrefix`, `keepSuffix`, `keep: "year"` or `preserveDomain`.
+**Resolution.** `config.Validate` rejects a `partial` field with none of
+`keepPrefix`, `keepSuffix`, `preserveDomain` or `keep`. A regression test loads
+a bundle with a bare partial and expects a validation error.
 
-**Proposed upstream action.** Enforce the parameter requirement in
-`config.Validate` (and the mask-policy schema), with tests for each valid form
-and for bare `partial`.
-
-**Acceptance:** a bundle containing `{"mode":"partial"}` fails to load with a
-clear error.
+**Acceptance met:** a bundle containing `{"mode":"partial"}` fails to load with
+a clear error.
 
 ---
 
@@ -329,16 +283,12 @@ hand-edit the registry (anti-pattern) or stay JSON-only.
 **Impact.** Download, CSV export or binary routes cannot be adopted cleanly,
 even though the runtime supports the opt-out.
 
-**Workaround here.** All controlled routes are JSON; no opt-out is needed.
+**Resolution.** `openapi-registry` maps `x-allow-non-json` to the registry's
+`allowNonJSON`, with a generation test. The extension is documented in the
+guide's phase 1 table. The party service stays JSON-only, so no route uses it.
 
-**Proposed upstream action.** Add `x-allow-non-json` to the generator
-operation struct and registry output, document it in the guide table, and add a
-generation test. If the decision is intentionally "JSON only", remove
-`allowNonJSON` from the public contract to avoid a misleading option.
-
-**Acceptance:** a contract with `x-allow-non-json: true` produces
-`"allowNonJSON": true` in the generated registry, and a non-JSON response is
-passed through only for that endpoint.
+**Acceptance met:** a contract with `x-allow-non-json: true` produces
+`"allowNonJSON": true` in the generated registry.
 
 ---
 
@@ -349,33 +299,23 @@ registry example uses `"id": "get-account"`.
 
 **Evidence.** [`SPEC-registry.md`](../../controls-core/contracts/SPEC-registry.md)
 and [`registry.schema.json`](../../controls-core/contracts/registry.schema.json)
-require kebab-case (`^[a-z0-9][a-z0-9-]*$`). The generator uses
-`operationId` verbatim as the registry id
-([`internal/openapiregistry/generate.go`](../../controls-core/internal/openapiregistry/generate.go)).
-A camelCase operation id therefore produces a registry that violates the
-schema. The guide's example does exactly that.
+require kebab-case (`^[a-z0-9][a-z0-9-]*$`). The generator used
+`operationId` verbatim as the registry id, so a camelCase operation id produced
+a registry that violates the schema. The guide's example did exactly that.
 
-**Impact.** Services that copy the guide's example ship schema-invalid ids.
-Decision logs, metrics labels and bundle validation may diverge between the
+**Impact.** Services that copy the guide's example shipped schema-invalid ids.
+Decision logs, metrics labels and bundle validation could diverge between the
 generated file and the contract.
 
-**Workaround here.** All operation ids are kebab-case (`get-party`,
-`update-party`, `merge-party`, `search-parties`). OpenAPI Generator still
-produces the expected Java methods (`getParty`, `updateParty`, …). The drift
-test pins the ids, and `ControlsSchemaTest` validates the committed registry
-against `registry.schema.json`, so an id-casing regression now fails the build.
+**Resolution.** `openapi-registry` normalizes the derived id with `kebabCase`
+(`getAccount` → `get-account`, `getPartyByID` → `get-party-by-id`) and rejects
+duplicate ids created by normalization. Existing kebab-case operation ids are
+unchanged. A generation test pins the mapping, and the demo's
+`ControlsSchemaTest` validates the committed registry against the schema.
 
-**Proposed upstream action.** Either normalize `operationId` to kebab-case in
-the generator (and document the mapping), or relax the schema/SPEC to allow
-camelCase. Add schema validation of generated registries in CI.
-
-**Acceptance:** every generated registry id validates against
-`registry.schema.json`, regardless of the operation-id casing style used in
-the contract.
-
----
-
-### G9 — `openapi-diff` parity is partial (Medium)
+**Acceptance met:** every generated registry id validates against
+`registry.schema.json`; camelCase and kebab-case operation ids produce the same
+kebab-case id.### G9 — `openapi-diff` parity is partial (Medium)
 
 **Guide:** phase 1 says `openapi-diff` checks "coverage and annotation parity".
 
@@ -391,16 +331,14 @@ from the PIP projection) can silently change entitlement outcomes while
 `openapi-diff` stays green. The registry drift test in this repo was widened to
 cover these bindings because of this gap.
 
-**Workaround here.** `RegistryContractTest` compares resource type, action,
-mask policy, source, attributes (order-sensitive), freshness,
-`maxStalenessSeconds`, `maskErrors`, `selfDescribing` and the resource-id
-reference.
+**Resolution.** `openapi-diff` now compares action, attributes,
+freshness, `maxStalenessSeconds`, `maskErrors`, `selfDescribing` and
+`allowNonJSON` in addition to the resource bindings. A binding-parity test
+asserts each mismatch is reported. `RegistryContractTest` remains the
+independent service-side drift check.
 
-**Proposed upstream action.** Extend `compareAnnotations`/`Endpoint` with the
-remaining bindings and add a drift fixture for each.
-
-**Acceptance:** changing any of the listed annotations makes `openapi-diff`
-fail.
+**Acceptance met:** changing any of the listed annotations makes
+`openapi-diff` fail.
 
 ---
 
@@ -415,40 +353,37 @@ lag is a process-wide `server.lagSeconds` setting, and `lagKnown` is derived
 from it. There is no fixture-level way to make one party stale, another unknown
 and a third fresh in the same run.
 
-**Impact.** The local failure matrix cannot be exercised without writing a
-custom PIP, which defeats the "self-contained example" goal. The demo uses
-`lagSeconds: 2` and `x-freshness: fresh` on the read, so the happy path and the
-PIP-outage path are covered, but `stale_attributes` and `lag_unknown` are not.
+**Impact (before the fix).** The reference fixture could not express a mixed
+lag matrix, so a service needed a custom PIP or stub to test
+`stale_attributes` and `lag_unknown`.
 
-**Workaround here.** `pip/pip.yaml` reports `lagSeconds: 2`; `GET` uses
-`x-freshness: fresh` with `x-max-staleness-seconds: 5`. A local PIP contract
-stub (`tools/stubpip`) reads `lagSeconds`/`lagKnown` from a state file on every
-request, so `make test-lag` exercises the boundary (`5` → allow), stale (`6` →
-`stale_attributes`), unknown (`lagKnown: false` → `lag_unknown`) and recovery
-without a custom PIP build.
+**Resolution.** The fixture format now accepts an optional `resourceMeta` map
+with per-resource `lagSeconds`, `lagKnown`, `version` and `ttlSeconds`.
+`MemoryRepo` returns them and the PIP server uses the fixture TTL when present;
+the process-wide `-lag-seconds` flag still overrides lag. A server test covers
+known and unknown lag plus version/TTL overrides. The demo keeps its stub PIP
+for dynamic state-file toggling, but the reference PIP can now express the
+matrix statically.
 
-**Proposed upstream action.** Extend the fixture schema with per-resource
-`lagSeconds`, `lagKnown`, `version` and `ttlSeconds` overrides, and document
-how to script stale/unknown cases.
-
-**Acceptance:** one fixture can produce allow, `stale_attributes` and
+**Acceptance met:** one fixture can produce allow, `stale_attributes` and
 `lag_unknown` outcomes for different party ids without a custom PIP.
 
 ## 3. Documentation gaps
 
 ### D1 — Command lines are placeholders
 
-The guide's phase 1 block shows `openapi-registry` without `-service` and
+The guide's phase 1 block showed `openapi-registry` without `-service` and
 `openapi-registry -check ...` without `-out` (the tool requires it). The
 `openapi-diff` invocation is also abbreviated. The full, working sequence is in
 this repo's [`Makefile`](../Makefile) `gate` target.
 
-**Proposed:** copy the full commands into the guide, including `-service` and
-`-out`, and note that `-check` compares generated JSON byte-for-byte.
+**Fixed:** the guide now has full `openapi-registry -check` and
+`openapi-diff` commands, including `-service`/`-out`, and notes that `-check`
+compares generated JSON byte-for-byte.
 
 ### D2 — `x-resource-source: both` semantics are underspecified
 
-The guide says `both` is "payload overlaid with PIP attributes" but does not
+The guide said `both` is "payload overlaid with PIP attributes" but did not
 say that:
 
 - the PIP record is still required (an unknown resource is `404` before the
@@ -457,136 +392,121 @@ say that:
   writing `ownerId`/`region` to gain entitlement.
 
 Both behaviours are used by `update-party` and documented in
-`docs/CONTROLS.md` §1. **Proposed:** add them to the phase 1 table and phase 8.
+`docs/CONTROLS.md` §1. **Fixed:** the guide's phase 1 now states both the PIP
+record requirement and the attribute-overlay rule.
 
 ### D3 — The guide promises a drift test that it does not ship
 
-Phase 6 says `mvn verify` proves "app builds and registry drift test passes",
+Phase 6 said `mvn verify` proves "app builds and registry drift test passes",
 but no reusable test is provided. This repo's
 [`RegistryContractTest`](../src/test/java/com/example/party/RegistryContractTest.java)
 is a candidate template (SnakeYAML + Jackson, no extra dependencies).
 
-**Proposed:** publish a Maven test template or a small checker, and link it
-from the guide.
+**Fixed:** the guide links the existing
+[`spring-accounts` drift test](../../controls-core/examples/spring-accounts/src/test/java/example/RegistryContractTest.java).
 
 ### D4 — DQ authoring is not specified
 
-The guide lists `dq.json` ownership but not the rule schema, supported
+The guide listed `dq.json` ownership but not the rule schema, supported
 operators, `blocking` semantics, or the request-body-only scope. This repo's
 [`docs/CONTROLS.md`](../docs/CONTROLS.md) §5 is a working reference.
 
-**Proposed:** add a DQ contract (schema + operator list + examples) under
-`contracts/`, alongside `SPEC-mask-ops.md`, and link it from phase 6.
+**Fixed:** added [`contracts/SPEC-dq.md`](../../controls-core/contracts/SPEC-dq.md)
+and [`contracts/dq.schema.json`](../../controls-core/contracts/dq.schema.json),
+and linked them from the guide. The demo validates `dq.json` against the schema.
 
 ### D5 — Cached endpoints can hide a PIP outage in tests
 
-Phase 6's matrix says "PIP down → 503", but a `cached` endpoint can still serve
+Phase 6's matrix said "PIP down → 503", but a `cached` endpoint could still serve
 from the sidecar cache. The demo's read uses `x-freshness: fresh` specifically
 so the outage test is deterministic.
 
-**Proposed:** note in phase 6 that outage tests must use `fresh` (or clear the
-cache), and that `cached` endpoints may continue to serve during a PIP outage.
+**Fixed:** phase 6 now says outage tests must use `fresh` (or clear the
+cache), and that `cached` endpoints may keep serving last-known-good data.
 
-## 4. Outstanding actions for later action
+## 4. Actions taken and remaining backlog
 
-These are deferred by request. None was applied to `controls-core` during this
-task.
+### Implemented in this pass
 
-### P0 — correctness/security gates
+All P0 and P1 items, with regression tests in `controls-core`:
 
-1. **Honor `x-controls-ignore` in `openapi-diff`.**
-   Files: `internal/openapidiff/openapidiff.go`, `tools/openapi-diff/main.go`.
-   Acceptance: G1.
-2. **Scope DQ rules by action/method (or skip `required` without a body).**
-   Files: `internal/config/config.go`, `internal/dq/dq.go`,
-   `internal/engine/engine.go`.
-   Acceptance: G2.
-3. **Make missing mask paths fail `controls-check`.**
-   File: `internal/controlscheck/check.go`.
-   Acceptance: G5, with a negative fixture.
-4. **Compile DQ rules in `controls-check` and reject wildcards at the gate.**
-   Files: `tools/controls-check/main.go`, `internal/dq/dq.go`.
-   Acceptance: G4.
+1. `openapi-diff` honors `x-controls-ignore` (G1).
+2. DQ rules scope by `action` and `endpoint`; `required` no longer denies reads
+   (G2, G3).
+3. `controls-check` validates endpoint-scoped DQ against the endpoint request
+   schema, and compiles all DQ rules (G3, G4).
+4. Missing mask-policy paths are gate errors (G5).
+5. Bare `partial` is rejected at bundle load (G6).
+6. `x-allow-non-json` generates `allowNonJSON` (G7).
+7. Registry ids are normalized to kebab-case (G8).
+8. `openapi-diff` compares action, attributes, freshness, max-staleness,
+   mask-errors, self-description and allow-non-json (G9).
+9. DQ supports `[*]` array paths; the demo exercises
+   `addresses[*].country` (G4).
+10. Guide docs D1–D5 updated; DQ contract and schema added.
 
-### P1 — contract/tooling consistency
+### Remaining backlog
 
-5. **Per-endpoint DQ schema validation in `controls-check`** (or an explicit
-   `operation` field on DQ rules), replacing the one-schema-per-resource-type
-   assumption.
-   Acceptance: G3.
-6. **Add DQ wildcard support** for array paths in the engine and gate.
-   Acceptance: G4.
-7. **Enforce bare-`partial` validation.**
-   Files: `internal/config/config.go`, `contracts/mask-policy.schema.json`.
-   Acceptance: G6.
-8. **Add `x-allow-non-json` generation.**
-   Files: `internal/openapiregistry/generate.go`,
-   `docs/SIDECAR-GUIDE.md`.
-   Acceptance: G7.
-9. **Extend `openapi-diff` parity** to action, attributes, freshness,
-   self-description, mask-errors and max-staleness.
-   Acceptance: G9.
-10. **Normalize or validate registry ids** against the kebab-case schema.
-    Acceptance: G8.
-
-### P2 — developer experience and documentation
-
-11. **Per-resource lag/version fixture support in the PIP.**
-    Acceptance: G10.
-12. **Guide updates:** full commands (D1), `both` semantics (D2), DQ contract
-    (D4), cached-outage note (D5).
-13. **Publish a registry drift-test template** (D3).
+1. **Release the controls-core changes.** The fixes are in the `Unreleased`
+   section; bump `VERSION`, publish the contracts/tools image, and remove
+   version-pinned references to `v0.38.3` in the demo docs.
+2. **Optional:** use the new `x-allow-non-json` path in a non-JSON demo route
+   (for example a CSV export) to prove the opt-out end-to-end.
+3. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
+   static lag cases; keep the stub only for dynamic state toggling.
 
 ## 5. How this repo compensates
 
 | Gap | Local compensation | Residual risk |
 |---|---|---|
-| G1 | `IgnoreAwareSpecTest` + filtered spec for `openapi-diff` | Workaround must be removed when upstream fixes it |
-| G2 | No `required` DQ; OpenAPI/Bean Validation returns 400 | Requiredness is not a sidecar DQ denial |
-| G3 | `partyMerge` control scope | Extra fixture/rule duplication; scope split must be explained |
-| G4 | DQ only on scalar/nested fields | Array fields rely on application validation |
-| G5 | Exact-output assertions in `test.sh` | A newly added mask field without a test can still regress |
-| G6 | Every `partial` has keep parameters | Reviewer discipline only |
-| G7 | JSON-only controlled routes | Non-JSON journeys not demonstrated |
-| G8 | Kebab-case operation ids + drift test | Adopters copying the guide may still get it wrong |
-| G9 | Wider `RegistryContractTest` | Only as good as the local test |
-| G10 | Stub PIP with state-file lag covers boundary/stale/unknown/recovery | Fixture-level lag support still deferred upstream |
+| G1 | n/a — fixed upstream; filtered spec removed | None |
+| G2 | Write-scoped required DQ rules enforce presence on writes | None |
+| G3 | n/a — fixed upstream; endpoint-scoped DQ rules | None |
+| G4 | n/a — fixed upstream; array DQ rules active | None |
+| G5 | n/a — fixed upstream; exact-output tests remain | None |
+| G6 | n/a — fixed upstream; `keep` parameters still explicit | None |
+| G7 | JSON-only controlled routes | Non-JSON journey not demonstrated |
+| G8 | n/a — generator normalizes ids; schema test retained | None |
+| G9 | n/a — fixed upstream; `RegistryContractTest` retained | None |
+| G10 | n/a — fixture metadata added; stub retained for dynamic state | None |
 
 ## 6. Reproductions
 
 From the workspace root, with a sibling `controls-core` checkout:
 
 ```bash
-# G1: raw diff fails on the ignored route
+# G1 (fixed): now exits 0, even though GET /parties has no registry entry
 cd controls-core
 go run ./tools/openapi-diff \
   -openapi ../party-mastering-service/openapi.yaml \
   -registry ../party-mastering-service/controls/registry.json
 
-# G5: rename "ssn" to "ssnTypo" in a copy of mask-policies.json, then:
+# G5 (fixed): rename "ssn" to "ssnTypo" in a copy of mask-policies.json
 go run ./tools/controls-check \
   -openapi ../party-mastering-service/openapi.yaml \
   -bundle ../party-mastering-service/.tmp/mask-typo \
   -pip-fixture ../party-mastering-service/pip/attributes.json
+# -> exits 1 with "mask policy ... field ... not in response schema"
 
-# G6: set a policy field to {"mode":"partial"} with no keep parameter, then:
-go run ./tools/controls-check \
-  -openapi ../party-mastering-service/openapi.yaml \
-  -bundle ../party-mastering-service/.tmp/bare-partial \
-  -pip-fixture ../party-mastering-service/pip/attributes.json
-
-# G4: add a DQ rule on addresses[*].country, then:
+# G4 (fixed at gate): add a DQ rule on addresses[*].country
 go run ./tools/controls-check \
   -openapi ../party-mastering-service/openapi.yaml \
   -bundle ../party-mastering-service/.tmp/dq-array \
   -pip-fixture ../party-mastering-service/pip/attributes.json
-# -> "ok"; the sidecar then rejects the rule at startup ("wildcard paths are not supported")
+# -> exits 1 with "wildcard paths are not supported"
+
+# G6 (fixed): a policy field with {"mode":"partial"} and no keep parameter
+go run ./tools/controls-check \
+  -openapi ../party-mastering-service/openapi.yaml \
+  -bundle ../party-mastering-service/.tmp/bare-partial \
+  -pip-fixture ../party-mastering-service/pip/attributes.json
+# -> exits 1 with "partial requires keepPrefix, keepSuffix, preserveDomain or keep"
 ```
 
-G2 was reproduced against the running compose stack by temporarily adding the
-required rule, restarting the sidecar, observing
-`403 dq_blocking:experiment.legalName.required` on a GET, then restoring the
-bundle and observing `200`.
+G2 is covered by `internal/dq` `TestActionScoping` and by `test.sh`: a
+write-scoped required rule does not run on `GET`, and a `PUT` missing
+`legalName.firstName` returns
+`403 dq_blocking:party.legalName.firstName.required`.
 
 The normal, committed gate is:
 
@@ -594,4 +514,6 @@ The normal, committed gate is:
 cd party-mastering-service
 make gate
 make test
+make test-signed
+make test-lag
 ```

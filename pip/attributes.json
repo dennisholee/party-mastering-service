@@ -19,38 +19,10 @@
         "region": "APAC",
         "status": "ACTIVE"
       }
-    },
-    "partyMerge": {
-      "PTY-1001": {
-        "ownerId": "cust-1001",
-        "relationshipManagerId": "rm-77",
-        "region": "US",
-        "status": "ACTIVE"
-      },
-      "PTY-2002": {
-        "ownerId": "cust-2002",
-        "relationshipManagerId": "rm-88",
-        "region": "EU",
-        "status": "BLOCKED"
-      },
-      "PTY-3003": {
-        "ownerId": "cust-3003",
-        "relationshipManagerId": "rm-99",
-        "region": "APAC",
-        "status": "ACTIVE"
-      }
     }
   },
   "classifications": {
     "party": {
-      "ssn": "pii.locked",
-      "taxId": "pii.locked",
-      "dateOfBirth": "pii.partial",
-      "contactPoints.email.value": "pii.partial",
-      "contactPoints.phone.value": "pii.partial",
-      "documents[*].number": "pii.partial"
-    },
-    "partyMerge": {
       "ssn": "pii.locked",
       "taxId": "pii.locked",
       "dateOfBirth": "pii.partial",

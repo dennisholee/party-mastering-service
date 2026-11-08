@@ -39,22 +39,23 @@ registry with `x-controls-ignore` and is therefore default-deny.
 |---|---|---|---|---|---|---|
 | `get-party` | `party` | `partyId` | `pip` | ownerId, relationshipManagerId, region, status | `party.read` | `x-freshness: fresh`, `x-max-staleness-seconds: 5`, `x-mask-errors: true` |
 | `update-party` | `party` | `partyId` | `both` | same | `party.update` | `x-self-describing: true`, `x-mask-errors: true` |
-| `merge-party` | `partyMerge` | `partyId` | `pip` | same | `party.merge` | `x-mask-errors: true` |
+| `merge-party` | `party` | `partyId` | `pip` | same | `party.merge` | `x-mask-errors: true` |
 | `search-parties` | — | — | — | — | — | `x-controls-ignore: true` |
 
 `x-action` is omitted on purpose; it is derived (`GET` → `read`, `PUT`/`POST` →
 `write`). The generated registry records the derived action.
 
-### Why `partyMerge` is a separate control scope
+### Endpoint-scoped DQ
 
-`party` and `partyMerge` resolve the **same party** from the PIP and evaluate
-the same ownership attributes. The split exists because `controls-check` in
-`controls-core` v0.38.3 validates DQ fields against one request schema per
-resource type (the first endpoint that has a JSON body). With two write
-journeys sharing `party`, the merge rules were checked against the update
-schema and vice versa. The `partyMerge` scope keeps each DQ rule validated
-against its real request schema. This is a documented workaround, not a second
-domain entity; see the addendum (G3).
+Both write journeys resolve the same `party` resource and evaluate the same
+ownership attributes. DQ rules carry an `endpoint` in addition to `action`:
+
+- `update-party` rules are validated against `PartyUpdateRequest`;
+- `merge-party` rules are validated against `PartyMergeRequest`.
+
+`controls-check` validates a scoped rule against that endpoint's own request
+schema, so the two journeys can share the `party` resource type. This replaces
+the earlier `partyMerge` control-scope workaround (addendum G3).
 
 ## 3. Entitlement
 
@@ -70,9 +71,9 @@ domain entity; see the addendum (G3).
 | `party.write.steward` | allow | party/write | role `data-steward` and claim region == resource region |
 | `party.write.compliance` | allow | party/write | role `compliance` and clearance `high` |
 | `party.write.blocked` | **deny** | party/write | `resource.status == BLOCKED` |
-| `partyMerge.write.steward` | allow | partyMerge/write | role `data-steward` and region match |
-| `partyMerge.write.compliance` | allow | partyMerge/write | role `compliance` and clearance `high` |
-| `partyMerge.write.blocked` | **deny** | partyMerge/write | `resource.status == BLOCKED` |
+
+The merge journey uses the `party` write rules above; there is no separate
+`partyMerge` policy scope.
 
 ### Decision matrix (PTY-1001 is US/ACTIVE; PTY-2002 is EU/BLOCKED)
 
@@ -139,38 +140,43 @@ Example masked read:
 
 Policy content: `controls/dq.json`. DQ is multi-state: a violation is reported
 in logs/metrics even when it does not block. Only `blocking: true` rejects.
+Rules may be scoped by `action` (`read`, `write`, `delete` or `*`) and by
+`endpoint` (a registry entry id). This is how write-only required rules avoid
+denying reads, and how update and merge rules validate against their own request
+schemas while sharing the `party` resource type.
 
-| Rule | Scope | Field | Operator | Blocking | Failure reason |
-|---|---|---|---|---|---|
-| `party.dateOfBirth.format` | party | `dateOfBirth` | pattern `^\d{4}-\d{2}-\d{2}$` | yes | `dq_blocking:party.dateOfBirth.format` |
-| `party.contactPoints.email.format` | party | `contactPoints.email.value` | email-shaped pattern | yes | `dq_blocking:party.contactPoints.email.format` |
-| `party.contactPoints.phone.format` | party | `contactPoints.phone.value` | `^\+?[0-9][0-9-]{6,19}$` | yes | `dq_blocking:party.contactPoints.phone.format` |
-| `party.segment.allowed` | party | `segment` | `^(RETAIL|PREMIER|PRIVATE)$` | yes | `dq_blocking:party.segment.allowed` |
-| `party.version.type` | party | `version` | `type: number` | yes | `dq_blocking:party.version.type` |
-| `party.changeReason.format` | party | `changeReason` | `^[A-Z_]{3,32}$` | yes | `dq_blocking:party.changeReason.format` |
-| `party.legalName.middleName.length` | party | `legalName.middleName` | `maxLength: 40` | **no** | logged, request allowed |
-| `party.merge.sourcePartyId.format` | partyMerge | `sourcePartyId` | `^PTY-[0-9]{4,}$` | yes | `dq_blocking:party.merge.sourcePartyId.format` |
-| `party.merge.reason.format` | partyMerge | `reason` | `^[A-Z_]{3,32}$` | yes | `dq_blocking:party.merge.reason.format` |
+| Rule | Scope | Action | Endpoint | Field | Operator | Blocking |
+|---|---|---|---|---|---|---|
+| `party.legalName.firstName.required` | party | write | update-party | `legalName.firstName` | required | yes |
+| `party.legalName.lastName.required` | party | write | update-party | `legalName.lastName` | required | yes |
+| `party.dateOfBirth.format` | party | write | update-party | `dateOfBirth` | pattern `^\d{4}-\d{2}-\d{2}$` | yes |
+| `party.contactPoints.email.format` | party | write | update-party | `contactPoints.email.value` | email-shaped pattern | yes |
+| `party.contactPoints.phone.format` | party | write | update-party | `contactPoints.phone.value` | `^\+?[0-9][0-9-]{6,19}$` | yes |
+| `party.segment.allowed` | party | write | update-party | `segment` | `^(RETAIL|PREMIER|PRIVATE)$` | yes |
+| `party.version.type` | party | write | update-party | `version` | `type: number` | yes |
+| `party.changeReason.format` | party | write | update-party | `changeReason` | `^[A-Z_]{3,32}$` | yes |
+| `party.legalName.middleName.length` | party | write | update-party | `legalName.middleName` | `maxLength: 40` | **no** |
+| `party.addresses.country.format` | party | write | update-party | `addresses[*].country` | `^[A-Z]{2}$` | yes |
+| `party.merge.sourcePartyId.format` | party | write | merge-party | `sourcePartyId` | `^PTY-[0-9]{4,}$` | yes |
+| `party.merge.reason.format` | party | write | merge-party | `reason` | `^[A-Z_]{3,32}$` | yes |
 
-### Why there are no `required` DQ rules
+### Action-scoped required rules
 
-The sidecar evaluates DQ against **every** request body for the resource type,
-including the empty body of a `GET`. A `required: true` rule therefore denies
-the read: adding `required` on `legalName.firstName` made
-`GET /parties/PTY-1001` return `403 dq_blocking:experiment.legalName.required`.
-This was reproduced against the running stack and the rule was removed.
+Earlier in adoption, the sidecar evaluated DQ against every request body,
+including the empty body of a `GET`; a `required` rule therefore denied reads.
+The engine accepts `action` and `endpoint` on a DQ rule, and resolves `[*]`
+array paths. Write rules are skipped on reads:
 
-Consequences for this service:
+- `GET /parties/PTY-1001` with no body → the write rules are skipped → `200`;
+- `PUT` with `legalName.firstName` missing →
+  `403 dq_blocking:party.legalName.firstName.required`;
+- `PUT` with an invalid value → the value rule denies as before.
 
-- presence/requiredness is enforced by the OpenAPI schema and Bean Validation,
-  returning `400 validation_failed` from the application;
-- DQ owns **value quality** (format, allowed values, type, length) on writes;
-- advisory rules (non-blocking) are used for softer quality signals.
+This is the P0 fix recorded as G2 in the addendum, extended with endpoint
+scoping for G3. Presence is still also described by the OpenAPI schema; the DQ
+rule is the enforcement point on the write path.
 
-The upstream fix is tracked as G2 in the addendum (scope DQ rules by action or
-evaluate `required` only when a body is present).
-
-Cross-field checks are also not expressible in DQ (`sourcePartyId != partyId`
+Cross-field checks are still not expressible in DQ (`sourcePartyId != partyId`
 is enforced by the application and returns `400 source_equals_target`).
 
 ## 6. Local test matrix
@@ -197,7 +203,7 @@ while developing:
 |---|---|---|
 | `openapi.yaml` annotations, registry fragment | service team | committed, generated |
 | `rules.json`, `mask-policies.json`, `dq.json` | delivery team | local fixtures |
-| sidecar/PIP runtime, contracts, Helm | core engineering | consumed, not modified |
+| sidecar/PIP runtime, contracts, Helm | core engineering | consumed from a sibling checkout; not vendored |
 | signed bundle and publication | central pipeline | not present locally |
 
 The local bundle is intentionally unsigned (`allowUnsigned: true`) and uses raw

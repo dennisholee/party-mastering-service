@@ -135,7 +135,7 @@ paths:
         duplicate is named in the request body. Entitlement is evaluated on the
         target party's PIP attributes. The sidecar masks the duplicate id in the
         response with `party.merge`.
-      x-resource-type: partyMerge
+      x-resource-type: party
       x-resource-id: partyId
       x-resource-source: pip
       x-attributes: [ownerId, relationshipManagerId, region, status]

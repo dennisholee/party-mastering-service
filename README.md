@@ -42,7 +42,7 @@ client (local gateway stand-in: x-subject / x-claim-*)
    │
    ▼  :18007
 party-mastering-sidecar  (Envoy + ext_proc)
-   ├─ registry.json      route → party / partyMerge + mask policy
+   ├─ registry.json      route → party + mask policy
    ├─ rules.json         entitlement (default deny, deny-first)
    ├─ mask-policies.json field masking (incl. array wildcards)
    ├─ dq.json            request data-quality rules
@@ -78,7 +78,7 @@ model and invariants are described in [`docs/DOMAIN.md`](docs/DOMAIN.md).
 |---|---|---|---|---|
 | `GET` | `/parties/{partyId}` | `get-party` | `party` (read) | `party.read` |
 | `PUT` | `/parties/{partyId}` | `update-party` | `party` (write) | `party.update` |
-| `POST` | `/parties/{partyId}/merges` | `merge-party` | `partyMerge` (write) | `party.merge` |
+| `POST` | `/parties/{partyId}/merges` | `merge-party` | `party` (write) | `party.merge` |
 | `GET` | `/parties` | `search-parties` | *excluded* (`x-controls-ignore`) | — |
 
 `GET /parties` is an internal bulk search with no single resource identity. It
@@ -203,6 +203,8 @@ checkout is absent; always present in `make gate` and CI).
 | unknown party | `404 resource_not_found` |
 | owner read | exact masked `ssn`, `taxId`, `dateOfBirth`, email, phone, document number |
 | steward update | `200`, version increments, response masked |
+| missing required first name | `403 dq_blocking:party.legalName.firstName.required` |
+| invalid country in an address array | `403 dq_blocking:party.addresses.country.format` |
 | invalid date / email / segment / version type | `403 dq_blocking:<rule>` |
 | 45-char middle name (advisory DQ) | `200`, non-blocking violation logged |
 | cleartext `ssn` | `403 rejected_field:ssn` |
@@ -234,7 +236,7 @@ controls/
   mask-policies.json         masking (delivery-owned fixture)
   dq.json                    data quality (delivery-owned fixture)
 pip/
-  attributes.json            PIP fixture (party + partyMerge, classifications)
+  attributes.json            PIP fixture (party attributes, classifications)
   pip.yaml                   PIP runtime config (reports 2s replica lag)
 sidecar/
   Dockerfile, entrypoint.sh  local Envoy + ext_proc demo image
@@ -320,9 +322,11 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 - The local demo image copies the sidecar entrypoint from `controls-core`
   `v0.38.3`; production should use the `controls-sidecar` Helm library and pin
   images by digest.
-- `x-controls-ignore` and multi-write-journey gaps are documented in
-  [`docs/SIDECAR-GUIDE-ADDENDUM.md`](docs/SIDECAR-GUIDE-ADDENDUM.md); no
-  `controls-core` code was changed for this repository.
+- The `x-controls-ignore`, DQ action/endpoint-scoping, mask-path and
+  DQ-compilation gate gaps are fixed in the workspace `controls-core` checkout
+  and recorded in [`docs/SIDECAR-GUIDE-ADDENDUM.md`](docs/SIDECAR-GUIDE-ADDENDUM.md).
+  The demo no longer needs its earlier filtered-spec or `partyMerge`
+  workarounds.
 
 ## Further reading
 
