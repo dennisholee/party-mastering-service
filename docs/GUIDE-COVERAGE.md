@@ -1,7 +1,7 @@
 # SIDECAR-GUIDE coverage matrix
 
 Scope: [`controls-core/docs/SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md)
-at `controls-core` **v0.39.0**, plus its extensions and the service demo.
+at `controls-core` **v0.40.0**, plus its extensions and the service demo.
 
 Status legend:
 

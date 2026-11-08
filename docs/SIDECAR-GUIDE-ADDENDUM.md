@@ -1,7 +1,7 @@
 # Sidecar adoption guide — addendum and outstanding actions
 
 Status: findings from implementing `party-mastering-service` against
-`controls-core` **v0.39.0** (released 2026-11-08) and
+`controls-core` **v0.40.0** (released 2026-11-08) and
 [`SIDECAR-GUIDE.md`](../../controls-core/docs/SIDECAR-GUIDE.md).
 
 **Coverage note.** The guide's phase 5 (signed identity) and phase 7 (signed
@@ -15,7 +15,7 @@ sections/extensions, broken links/anchors or nonexistent documented make
 targets; `make guide-smoke` runs the docs check plus all local gates and runtime
 suites.
 
-**The P0/P1 fixes below shipped in `controls-core` v0.39.0.** This demo
+**The P0/P1 fixes below shipped in `controls-core` v0.40.0.** This demo
 repository vendors none of that code; it consumes the sibling checkout. Every item is now either (a) fixed upstream and
 removed from the demo's workarounds, (b) mitigated locally, or (c) still
 deferred. The purpose of this document is to keep the evidence and the
@@ -454,7 +454,7 @@ All P0 and P1 items, with regression tests in `controls-core`:
 
 ### Release
 
-The fixes are released as `controls-core` **v0.39.0** (commit `d5646ed`) and
+The fixes are released as `controls-core` **v0.40.0** (commit `d5646ed`) and
 tagged locally. Publishing the contracts package and tools
 image is a CI action that needs the registry credentials; it is not performed
 from this workspace.

@@ -22,7 +22,7 @@ The application implements business mastering only.
 
 ## Status
 
-`v0.1.0` reference demo, verified against `controls-core` `v0.39.0`
+`v0.1.0` reference demo, verified against `controls-core` `v0.40.0`
 (Envoy 1.40 + ext_proc) with `make test` and `make test-signed` green:
 
 - Java build and generated-code contract tests on Spring Boot 4.1;
@@ -103,7 +103,7 @@ Prerequisites:
 
 - Java 21+ and Maven 3.9+;
 - Docker with compose;
-- Go 1.26+ (builds the ext_proc/PIP Linux binaries);
+- Go 1.27+ (builds the ext_proc/PIP Linux binaries);
 - a sibling checkout at `../controls-core` (override with `CONTROLS_CORE=...`);
 - ports `18007` (development), `18008` (signed) and `18009` (replica-lag) free.
 
@@ -354,7 +354,7 @@ variable `CONTROLS_CORE_REPOSITORY` and, for a private checkout, the
 - The app port is unpublished; a NetworkPolicy should admit the gateway only
   to the sidecar and the sidecar only to the PIP.
 - The local demo image copies the sidecar entrypoint from `controls-core`
-  `v0.39.0`; production should use the `controls-sidecar` Helm library and pin
+  `v0.40.0`; production should use the `controls-sidecar` Helm library and pin
   images by digest.
 - The `x-controls-ignore`, DQ action/endpoint-scoping, mask-path and
   DQ-compilation gate gaps are fixed in the workspace `controls-core` checkout
