@@ -1,18 +1,6 @@
 name: party-mastering-service-signed
+
 services:
-  app:
-    image: party-mastering-app:dev
-    expose:
-      - "8080"
-
-  pip:
-    image: party-mastering-pip:dev
-    command: ["-runtime-config", "/etc/controls/pip.yaml"]
-    volumes:
-      - ./pip/pip.yaml:/etc/controls/pip.yaml:ro
-    expose:
-      - "8082"
-
   sidecar:
     image: ${CONTROLS_SIDECAR_IMAGE:-party-mastering-sidecar:dev}
     ports:
@@ -22,7 +10,6 @@ services:
       CONTROLS_IDENTITY_HMAC_KEY: ${CONTROLS_IDENTITY_HMAC_KEY:?set CONTROLS_IDENTITY_HMAC_KEY for signed mode}
       SERVICE_NAME: party-mastering-signed
     volumes:
-      # The rendered, signed bundle. The private key is deliberately absent.
       - ./.tmp/signed/bundle:/etc/controls/bundle:ro
       - ./.tmp/signed/keys/bundle-signing.pub.pem:/etc/controls/keys/bundle-signing.pub.pem:ro
       - ./envoy/envoy.yaml:/etc/controls/envoy.yaml:ro

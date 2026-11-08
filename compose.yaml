@@ -1,18 +1,6 @@
 name: party-mastering-service
+
 services:
-  app:
-    image: party-mastering-app:dev
-    expose:
-      - "8080"
-
-  pip:
-    image: party-mastering-pip:dev
-    command: ["-runtime-config", "/etc/controls/pip.yaml"]
-    volumes:
-      - ./pip/pip.yaml:/etc/controls/pip.yaml:ro
-    expose:
-      - "8082"
-
   sidecar:
     image: ${CONTROLS_SIDECAR_IMAGE:-party-mastering-sidecar:dev}
     ports:

@@ -1,21 +1,10 @@
 name: party-mastering-service-lag-fixture
 
-# Static replica-lag matrix using the reference PIP and fixture resourceMeta.
-# PTY-1001 reports lag 5 (at the bound), PTY-2002 lag 6 (stale) and PTY-3003
-# lagKnown=false (unknown). No process-wide lag override is configured.
 services:
-  app:
-    image: party-mastering-app:dev
-    expose:
-      - "8080"
-
   pip:
-    image: party-mastering-pip:dev
     command: ["-runtime-config", "/etc/controls/pip.lag.yaml"]
     volumes:
       - ./pip/pip.lag.yaml:/etc/controls/pip.lag.yaml:ro
-    expose:
-      - "8082"
 
   sidecar:
     image: ${CONTROLS_SIDECAR_IMAGE:-party-mastering-sidecar:dev}

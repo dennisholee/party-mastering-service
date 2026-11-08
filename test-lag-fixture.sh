@@ -9,14 +9,14 @@
 set -euo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
-COMPOSE="docker compose -f compose.lag-fixture.yaml"
+COMPOSE="docker compose -f compose.base.yaml -f compose.lag-fixture.yaml"
 BASE="http://127.0.0.1:18010"
 TMP=".tmp"
 OUT="$TMP/lag-fixture-body.json"
 mkdir -p "$TMP"
 
-fail() { echo "LAG FIXTURE FAIL: $*" >&2; $COMPOSE logs >&2 || true; exit 1; }
-cleanup() { $COMPOSE down -v >/dev/null 2>&1 || true; }
+LABEL="LAG FIXTURE"
+source test/lib.sh
 trap cleanup EXIT
 
 req() {
@@ -25,12 +25,6 @@ req() {
   curl -s --max-time 10 -o "$out" -w '%{http_code}' "$@" "$BASE$url"
 }
 
-assert_reason() {
-  local want=$1 file=$2 label=$3
-  local got
-  got=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get("error",""))' "$file")
-  [ "$want" = "$got" ] || { echo "body: $(cat "$file" 2>/dev/null || true)" >&2; fail "$label: expected reason $want, got $got"; }
-}
 
 code=""
 for _ in $(seq 1 120); do

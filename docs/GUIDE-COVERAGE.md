@@ -29,7 +29,7 @@ local links/anchors and that documented `make` targets exist.
 | §6 | Policy and DQ ownership | `controls/*.json`; DQ contract [`SPEC-dq.md`](../../controls-core/contracts/SPEC-dq.md) | `controls-check`, tests | Documented |
 | §7 | Package and deploy | `Dockerfile`, `sidecar/Dockerfile`, Helm charts | local images; Helm/cluster not deployed | Environment-only |
 | §8 | Identity and PIP | `sidecar.signed.yaml`, `tools/sign_identity.py`, PIP fixture/contract | `test-signed.sh`, PIP handshake; gateway/mTLS absent | Partial |
-| §9 | Test | `test*.sh`, `conformance/fixtures`, Maven tests | all local suites green, including malformed/oversized bodies; cluster matrix absent | Partial |
+| §9 | Test | `test/lib.sh`, `test*.sh`, `conformance/fixtures`, Maven tests | all local suites green, including malformed/oversized bodies; cluster matrix absent | Partial |
 | §10 | Rollout | production process | not performed | Environment-only |
 | §11 | Operate | ext_proc metrics/health, audit sink | metrics endpoint present; dashboards/retention absent | Partial |
 | §12 | Troubleshooting | tests reproduce `403`/`404`/`503` reasons | `test.sh`, `test-signed.sh`, `test-lag*.sh` | Verified |

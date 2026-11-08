@@ -27,7 +27,7 @@ STUB_IMAGE ?= party-mastering-stubpip:dev
 # gateway secret store, never from a Makefile.
 IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
 
-.PHONY: registry schema docs-check eol-check conformance gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture guide-smoke down logs logs-signed logs-lag logs-lag-fixture
+.PHONY: registry schema docs-check eol-check entrypoint-check conformance gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture guide-smoke down logs logs-signed logs-lag logs-lag-fixture
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -47,6 +47,9 @@ docs-check:
 eol-check:
 	./tools/eol_check.sh
 
+entrypoint-check:
+	./tools/check_entrypoint.sh
+
 ## Engine-level conformance fixtures against the committed bundle.
 conformance:
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/conformance \
@@ -56,7 +59,7 @@ conformance:
 
 ## Build-time gates: Java tests + registry drift + OpenAPI coverage + bundle checks.
 ## Requires a sibling controls-core checkout (or CONTROLS_CORE=...).
-gate: docs-check eol-check
+gate: docs-check eol-check entrypoint-check
 	$(MVN) $(MVN_ARGS) -q test
 	cd $(CONTROLS_CORE) && $(GO) run ./tools/openapi-registry -check \
 		-openapi ../party-mastering-service/openapi.yaml \
@@ -88,7 +91,7 @@ images:
 
 ## Development stack: raw gateway-stand-in headers, unsigned local bundle.
 up: images
-	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose up -d
+	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.base.yaml -f compose.yaml up -d
 
 ## Signed stack: render + Ed25519-sign a bundle, then require HMAC identity.
 signed: images
@@ -112,7 +115,7 @@ signed: images
 		-bundle $(SIGNED_DIR)/bundle \
 		-verify \
 		-pubkey $(SIGNED_DIR)/keys/bundle-signing.pub.pem
-	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml up -d
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.base.yaml -f compose.signed.yaml up -d
 
 ## One-shot: gates, images, compose, development contract tests, teardown.
 test: gate up
@@ -129,7 +132,7 @@ stub:
 lag: images stub
 	mkdir -p $(TMP)
 	printf '{"lagSeconds":2,"lagKnown":true}\n' > $(TMP)/lag-state.json
-	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.lag.yaml up -d
+	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.base.yaml -f compose.lag.yaml up -d
 
 ## One-shot: gates, stub PIP, replica-lag failure matrix, teardown.
 test-lag: gate lag
@@ -137,7 +140,7 @@ test-lag: gate lag
 
 ## Static lag matrix through the reference PIP and fixture resourceMeta.
 lag-fixture: images
-	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.lag-fixture.yaml up -d
+	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.base.yaml -f compose.lag-fixture.yaml up -d
 
 test-lag-fixture: gate lag-fixture
 	./test-lag-fixture.sh
@@ -150,19 +153,19 @@ test-signed: gate signed
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) ./test-signed.sh
 
 down:
-	docker compose down -v
-	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml down -v
-	docker compose -f compose.lag.yaml down -v
-	docker compose -f compose.lag-fixture.yaml down -v
+	docker compose -f compose.base.yaml -f compose.yaml down -v
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.base.yaml -f compose.signed.yaml down -v
+	docker compose -f compose.base.yaml -f compose.lag.yaml down -v
+	docker compose -f compose.base.yaml -f compose.lag-fixture.yaml down -v
 
 logs:
-	docker compose logs -f
+	docker compose -f compose.base.yaml -f compose.yaml logs -f
 
 logs-signed:
-	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml logs -f
+	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.base.yaml -f compose.signed.yaml logs -f
 
 logs-lag:
-	docker compose -f compose.lag.yaml logs -f
+	docker compose -f compose.base.yaml -f compose.lag.yaml logs -f
 
 logs-lag-fixture:
-	docker compose -f compose.lag-fixture.yaml logs -f
+	docker compose -f compose.base.yaml -f compose.lag-fixture.yaml logs -f

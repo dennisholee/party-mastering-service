@@ -266,18 +266,23 @@ sidecar/
 envoy/envoy.yaml             Envoy listener/cluster/ext_proc config
 sidecar.yaml                 sidecar runtime config (unsigned local bundle)
 sidecar.signed.yaml          signed bundle + HMAC identity runtime config
-compose.yaml                 app + PIP + sidecar (development headers)
-compose.signed.yaml          app + PIP + sidecar (signed bundle + identity)
-compose.lag.yaml             app + stub PIP + sidecar (dynamic lag matrix)
-compose.lag-fixture.yaml     app + reference PIP + sidecar (static lag matrix)
+compose.base.yaml            shared app + PIP services (used by every stack)
+compose.yaml                 sidecar override for development headers
+compose.signed.yaml          sidecar override for signed bundle + identity
+compose.lag.yaml             stub PIP + sidecar override (dynamic lag matrix)
+compose.lag-fixture.yaml     reference PIP + sidecar override (static lag matrix)
 pip/pip.lag.yaml             PIP config without a process-wide lag override
 conformance/fixtures/        engine-level allow/deny/mask/DQ/reject fixtures
+test/lib.sh                  shared assertions and teardown
 test.sh                      end-to-end contract test (development headers)
 test-signed.sh               signed bundle + signed identity contract test
 test-lag.sh                  dynamic stale_attributes / lag_unknown / recovery
 test-lag-fixture.sh          fixture resourceMeta static lag matrix
+sidecar/README.md            demo image + entrypoint attribution
 tools/sign_identity.py       local HMAC envelope helper (stdlib only)
 tools/docs_check.py          link/anchor/command/coverage checker
+tools/eol_check.sh           EOL bases/frameworks/deprecated Envoy field
+tools/check_entrypoint.sh    entrypoint drift check against controls-core
 docs/GUIDE-COVERAGE.md       guide-section and extension coverage matrix
 tools/stubpip/               local PIP contract stub with state-file lag
 pip/Dockerfile.stub          image for the local stub PIP
