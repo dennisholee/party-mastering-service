@@ -283,7 +283,9 @@ even though the runtime supports the opt-out.
 
 **Resolution.** `openapi-registry` maps `x-allow-non-json` to the registry's
 `allowNonJSON`, with a generation test. The extension is documented in the
-guide's phase 1 table. The party service stays JSON-only, so no route uses it.
+guide's phase 1 table. The demo now uses it on `export-party`, a CSV route that
+emits only non-sensitive columns (`partyId,segment,status,region,version`); the
+sidecar passes the non-JSON body through and entitlement still applies.
 
 **Acceptance met:** a contract with `x-allow-non-json: true` produces
 `"allowNonJSON": true` in the generated registry.
@@ -452,9 +454,7 @@ from this workspace.
 
 ### Remaining backlog
 
-1. **Optional:** use the new `x-allow-non-json` path in a non-JSON demo route
-   (for example a CSV export) to prove the opt-out end-to-end.
-2. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
+1. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
    static lag cases; keep the stub only for dynamic state toggling.
 
 ## 5. How this repo compensates

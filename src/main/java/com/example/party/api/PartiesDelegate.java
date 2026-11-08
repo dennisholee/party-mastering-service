@@ -6,6 +6,7 @@ import com.example.party.model.PartyMergeResult;
 import com.example.party.model.PartyUpdateRequest;
 import com.example.party.service.PartyMasteringService;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,13 @@ public class PartiesDelegate implements PartiesApiDelegate {
     @Override
     public ResponseEntity<Party> getParty(String partyId) {
         return ResponseEntity.ok(service.get(partyId));
+    }
+
+    @Override
+    public ResponseEntity<String> exportParty(String partyId) {
+        return ResponseEntity.ok()
+            .contentType(MediaType.parseMediaType("text/csv"))
+            .body(service.exportCsv(partyId));
     }
 
     @Override

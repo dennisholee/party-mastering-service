@@ -96,6 +96,17 @@ public class PartyMasteringService {
             .mergedAt(OffsetDateTime.now());
     }
 
+    /** Non-sensitive projection for the CSV export. Never include PII here. */
+    public String exportCsv(String partyId) {
+        Party party = get(partyId);
+        return "partyId,segment,status,region,version\n"
+            + party.getPartyId() + ","
+            + party.getSegment() + ","
+            + party.getStatus() + ","
+            + party.getRegion() + ","
+            + party.getVersion() + "\n";
+    }
+
     public List<Party> search(String query, Integer limit) {
         int effective = limit == null ? 20 : limit;
         if (effective < 1 || effective > 50) {

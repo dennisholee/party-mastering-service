@@ -186,6 +186,52 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /parties/{partyId}/export:
+    get:
+      tags: [parties]
+      operationId: export-party
+      summary: Export non-sensitive golden-record fields as CSV
+      description: |
+        A non-JSON export used by the servicing desktop. The application emits
+        only non-sensitive fields; the sidecar cannot mask CSV cells, so this
+        endpoint opts out of JSON masking with `x-allow-non-json: true`.
+        Entitlement is still route-bound and the PIP record is still required.
+      x-resource-type: party
+      x-resource-id: partyId
+      x-resource-source: pip
+      x-attributes: [ownerId, relationshipManagerId, region, status]
+      x-mask-policy: party.export
+      x-mask-errors: true
+      x-allow-non-json: true
+      x-freshness: fresh
+      x-max-staleness-seconds: 5
+      parameters:
+        - $ref: '#/components/parameters/PartyId'
+      responses:
+        '200':
+          description: CSV header and one non-sensitive row
+          content:
+            text/csv:
+              schema:
+                type: string
+        '403':
+          description: Denied by entitlement or missing identity
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Party not found in the PIP
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: PIP unavailable
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /parties:
     get:
       tags: [parties]

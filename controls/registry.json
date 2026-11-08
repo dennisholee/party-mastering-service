@@ -3,6 +3,31 @@
   "defaultUnregistered": "deny",
   "endpoints": [
     {
+      "id": "export-party",
+      "service": "party-mastering",
+      "method": "GET",
+      "path": "/parties/{partyId}/export",
+      "resourceType": "party",
+      "action": "read",
+      "resourceId": {
+        "from": "path",
+        "name": "partyId"
+      },
+      "resourceSource": "pip",
+      "attributes": [
+        "ownerId",
+        "relationshipManagerId",
+        "region",
+        "status"
+      ],
+      "maskPolicy": "party.export",
+      "maskErrors": true,
+      "allowNonJSON": true,
+      "freshness": "fresh",
+      "maxStalenessSeconds": 5,
+      "selfDescribing": false
+    },
+    {
       "id": "get-party",
       "service": "party-mastering",
       "method": "GET",

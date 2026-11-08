@@ -28,7 +28,9 @@ For each request the sidecar runs, in order:
    request body; blocking violations are `403 dq_blocking:<rule>`.
 9. **Upstream call** — only after all of the above.
 10. **Response masking** — selected by `x-mask-policy`; errors are masked too
-    because `x-mask-errors: true`. A non-JSON body fails closed.
+    because `x-mask-errors: true`. A non-JSON body fails closed unless the
+    endpoint sets `x-allow-non-json: true`; `export-party` is the only such
+    route and emits non-sensitive columns only.
 
 `GET /parties` never reaches step 2 successfully: it is excluded from the
 registry with `x-controls-ignore` and is therefore default-deny.
@@ -40,6 +42,7 @@ registry with `x-controls-ignore` and is therefore default-deny.
 | `get-party` | `party` | `partyId` | `pip` | ownerId, relationshipManagerId, region, status | `party.read` | `x-freshness: fresh`, `x-max-staleness-seconds: 5`, `x-mask-errors: true` |
 | `update-party` | `party` | `partyId` | `both` | same | `party.update` | `x-self-describing: true`, `x-mask-errors: true` |
 | `merge-party` | `party` | `partyId` | `pip` | same | `party.merge` | `x-mask-errors: true` |
+| `export-party` | `party` | `partyId` | `pip` | same | `party.export` | `x-allow-non-json: true`, `x-freshness: fresh` |
 | `search-parties` | — | — | — | — | — | `x-controls-ignore: true` |
 
 `x-action` is omitted on purpose; it is derived (`GET` → `read`, `PUT`/`POST` →
@@ -106,6 +109,13 @@ Policy content: `controls/mask-policies.json`.
 | `party.update` | same fields | same | response of `PUT` is masked identically |
 | `party.update` | `rejectFields` | reject | cleartext `ssn`, `taxId`, `documents[*].number` are `403` |
 | `party.merge` | `mergedFromPartyId` | partial `keepSuffix: 4` | `PTY-2002` → `****2002` |
+| `party.export` | — | none | non-JSON CSV; the application emits only non-sensitive columns |
+
+`party.export` has no field rules and is paired with
+`x-allow-non-json: true`. The CSV
+(`partyId,segment,status,region,version`) cannot be cell-masked, so the
+application must not include PII. Do not copy this pattern for a payload that
+needs field-level masking.
 
 `party.read` uses `default: none`: unlisted fields (`partyId`, `ownerId`,
 `region`, names, addresses, consents, `version`) pass through. `party.update`

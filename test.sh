@@ -65,6 +65,17 @@ assert b["documents"][0]["number"] == "*****567", b
 assert b["addresses"][0]["line1"] == "1 Market St", b
 PY
 
+# ---------------------------------------------------- non-JSON CSV export
+code=$(req GET "/parties/PTY-1001/export" "$OUT" -H 'x-subject: cust-1001')
+assert_code 200 "$code" "owner CSV export"
+grep -q '^partyId,segment,status,region,version$' "$OUT" || fail "CSV header missing: $(cat "$OUT")"
+grep -q '^PTY-1001,PREMIER,ACTIVE,US,1$' "$OUT" || fail "CSV row missing: $(cat "$OUT")"
+if grep -Eq '111-22|@example' "$OUT"; then fail "CSV leaked PII: $(cat "$OUT")"; fi
+code=$(req GET "/parties/PTY-1001/export" "$OUT" -H 'x-subject: u-2')
+assert_code 403 "$code" "non-owner CSV export"
+code=$(req GET "/parties/PTY-9999/export" "$OUT" -H 'x-subject: cust-1001')
+assert_code 404 "$code" "unknown party CSV export"
+
 # ------------------------------------------------- relationship manager read
 code=$(req GET "/parties/PTY-1001" "$OUT" -H 'x-subject: rm-77')
 assert_code 200 "$code" "relationship manager read"

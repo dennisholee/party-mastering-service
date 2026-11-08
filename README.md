@@ -79,11 +79,16 @@ model and invariants are described in [`docs/DOMAIN.md`](docs/DOMAIN.md).
 | `GET` | `/parties/{partyId}` | `get-party` | `party` (read) | `party.read` |
 | `PUT` | `/parties/{partyId}` | `update-party` | `party` (write) | `party.update` |
 | `POST` | `/parties/{partyId}/merges` | `merge-party` | `party` (write) | `party.merge` |
+| `GET` | `/parties/{partyId}/export` | `export-party` | `party` (read) | `party.export` (non-JSON opt-out) |
 | `GET` | `/parties` | `search-parties` | *excluded* (`x-controls-ignore`) | — |
 
-`GET /parties` is an internal bulk search with no single resource identity. It
-is deliberately excluded from the generated registry and therefore stays
-default-deny at the sidecar. The application route still exists for the
+`GET /parties/{partyId}/export` is a non-JSON route with
+`x-allow-non-json: true`. The application emits only
+`partyId,segment,status,region,version`; CSV cells cannot be masked, so the
+service is responsible for never putting PII in the export. `GET /parties` is
+an internal bulk search with no single resource identity. It is deliberately
+excluded from the generated registry and therefore stays default-deny at the
+sidecar. The application route still exists for the
 internal console; the application port is not published.
 
 See [`docs/CONTROLS.md`](docs/CONTROLS.md) for the route bindings, entitlement
@@ -203,6 +208,8 @@ checkout is absent; always present in `make gate` and CI).
 | unknown party | `404 resource_not_found` |
 | owner read | exact masked `ssn`, `taxId`, `dateOfBirth`, email, phone, document number |
 | steward update | `200`, version increments, response masked |
+| owner CSV export | `200 text/csv`, non-sensitive columns only, no PII |
+| non-owner / unknown CSV export | `403` / `404` |
 | missing required first name | `403 dq_blocking:party.legalName.firstName.required` |
 | invalid country in an address array | `403 dq_blocking:party.addresses.country.format` |
 | invalid date / email / segment / version type | `403 dq_blocking:<rule>` |

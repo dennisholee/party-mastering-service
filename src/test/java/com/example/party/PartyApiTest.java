@@ -10,6 +10,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -38,6 +41,17 @@ class PartyApiTest {
             .andExpect(jsonPath("$.contactPoints.email.value").value("jane.doe@example.com"))
             .andExpect(jsonPath("$.documents[0].number").value("X1234567"))
             .andExpect(jsonPath("$.version").value(1));
+    }
+
+    @Test
+    void csvExportIsNonJsonAndPiiFree() throws Exception {
+        mvc.perform(get("/parties/PTY-1001/export"))
+            .andExpect(status().isOk())
+            .andExpect(content().contentTypeCompatibleWith("text/csv"))
+            .andExpect(content().string(containsString("partyId,segment,status,region,version")))
+            .andExpect(content().string(containsString("PTY-1001,PREMIER,ACTIVE,US,1")))
+            .andExpect(content().string(not(containsString("111-22-3333"))))
+            .andExpect(content().string(not(containsString("jane.doe@example.com"))));
     }
 
     @Test
