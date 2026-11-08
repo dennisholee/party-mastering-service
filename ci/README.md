@@ -39,7 +39,7 @@ controls repository.
 | Job | Trigger | What it runs |
 |---|---|---|
 | `gate` | push, pull request, manual | `make gate`: Java tests, generated-code drift, registry schema validation, OpenAPI coverage, bundle checks |
-| `e2e` | push to `main`, manual | `make test` (development headers), `make test-signed` (signed bundle + HMAC identity) and `make test-lag` (replica-lag matrix): builds images, runs all three suites through Envoy + ext_proc, tears down |
+| `e2e` | push to `main`, manual | `make test` (development headers), `make test-signed` (signed bundle + HMAC identity), `make test-lag` (stub-PIP lag matrix) and `make test-lag-fixture` (reference-PIP fixture lag matrix): builds images, runs all four suites through Envoy + ext_proc, tears down |
 
 The end-to-end job is intentionally not run on every pull request: it builds
 three images and exercises a real Envoy listener. Run it manually with
@@ -53,6 +53,7 @@ make gate
 make test
 make test-signed
 make test-lag
+make test-lag-fixture
 
 # validate only the contract schemas
 make schema

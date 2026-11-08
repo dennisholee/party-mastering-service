@@ -30,5 +30,27 @@
       "contactPoints.phone.value": "pii.partial",
       "documents[*].number": "pii.partial"
     }
+  },
+  "resourceMeta": {
+    "party": {
+      "PTY-1001": {
+        "lagSeconds": 5,
+        "lagKnown": true,
+        "version": "fixture-v2",
+        "ttlSeconds": 30
+      },
+      "PTY-2002": {
+        "lagSeconds": 6,
+        "lagKnown": true,
+        "version": "fixture-v2",
+        "ttlSeconds": 30
+      },
+      "PTY-3003": {
+        "lagSeconds": 2,
+        "lagKnown": false,
+        "version": "fixture-v2",
+        "ttlSeconds": 30
+      }
+    }
   }
 }

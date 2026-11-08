@@ -26,7 +26,7 @@ STUB_IMAGE ?= party-mastering-stubpip:dev
 # gateway secret store, never from a Makefile.
 IDENTITY_KEY ?= party-mastering-local-identity-key-change-me
 
-.PHONY: registry schema gate images up signed test test-signed stub lag test-lag down logs logs-signed logs-lag
+.PHONY: registry schema gate images up signed test test-signed stub lag test-lag lag-fixture test-lag-fixture down logs logs-signed logs-lag logs-lag-fixture
 
 ## Regenerate the committed controls/registry.json from openapi.yaml.
 registry:
@@ -116,6 +116,13 @@ lag: images stub
 test-lag: gate lag
 	./test-lag.sh
 
+## Static lag matrix through the reference PIP and fixture resourceMeta.
+lag-fixture: images
+	CONTROLS_SIDECAR_IMAGE=$(SIDECAR_IMAGE) docker compose -f compose.lag-fixture.yaml up -d
+
+test-lag-fixture: gate lag-fixture
+	./test-lag-fixture.sh
+
 ## One-shot: gates, signed bundle, signed identity, contract tests, teardown.
 test-signed: gate signed
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) ./test-signed.sh
@@ -124,6 +131,7 @@ down:
 	docker compose down -v
 	CONTROLS_IDENTITY_HMAC_KEY=$(IDENTITY_KEY) docker compose -f compose.signed.yaml down -v
 	docker compose -f compose.lag.yaml down -v
+	docker compose -f compose.lag-fixture.yaml down -v
 
 logs:
 	docker compose logs -f
@@ -133,3 +141,6 @@ logs-signed:
 
 logs-lag:
 	docker compose -f compose.lag.yaml logs -f
+
+logs-lag-fixture:
+	docker compose -f compose.lag-fixture.yaml logs -f

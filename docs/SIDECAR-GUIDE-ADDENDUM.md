@@ -447,15 +447,15 @@ All P0 and P1 items, with regression tests in `controls-core`:
 
 ### Release
 
-The fixes are released as `controls-core` **v0.39.0** (commit `10b5c06` plus the
-release commit) and tagged locally. Publishing the contracts package and tools
+The fixes are released as `controls-core` **v0.39.0** (commit `d5646ed`) and
+tagged locally. Publishing the contracts package and tools
 image is a CI action that needs the registry credentials; it is not performed
 from this workspace.
 
 ### Remaining backlog
 
-1. **Optional:** replace the demo's stub PIP with fixture `resourceMeta` for the
-   static lag cases; keep the stub only for dynamic state toggling.
+None functional. `make test-lag` covers the dynamic stub-PIP matrix and
+`make test-lag-fixture` covers the static reference-PIP `resourceMeta` matrix.
 
 ## 5. How this repo compensates
 

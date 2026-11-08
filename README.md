@@ -110,7 +110,8 @@ make schema         # validate registry/mask fixtures against controls-core cont
 make gate           # schema + registry drift + openapi-diff + controls-check
 make test           # gate, build images, compose, end-to-end contract test, teardown
 make test-signed    # render/sign a bundle, require HMAC identity, contract test
-make test-lag       # stub PIP: boundary, stale and unknown replica-lag matrix
+make test-lag       # dynamic stub PIP: boundary, stale, unknown, recovery
+make test-lag-fixture # reference PIP + fixture resourceMeta: static matrix
 ```
 
 Run the stack interactively:
@@ -173,22 +174,25 @@ tampered, expired and wrong-key envelopes (`403 identity_untrusted`).
 
 ### Replica-lag matrix
 
-`make test-lag` starts a third stack on `:18009` whose PIP is a local contract
-stub ([`tools/stubpip`](tools/stubpip)). The stub reads `lagSeconds` and
-`lagKnown` from a state file on every request, so the test can move the same
-`GET` between states without restarting the sidecar:
+Two stacks exercise the same `x-max-staleness-seconds: 5` read:
+
+- `make test-lag` (`:18009`) uses a local contract stub whose
+  `lagSeconds`/`lagKnown` come from a state file. It proves the boundary,
+  stale, unknown and recovery transitions on one endpoint.
+- `make test-lag-fixture` (`:18010`) uses the **reference PIP** with
+  `resourceMeta` in [`pip/attributes.json`](pip/attributes.json):
+  `PTY-1001` reports lag 5 (allow), `PTY-2002` lag 6 (stale) and `PTY-3003`
+  unknown lag. This proves the fixture metadata path without a custom PIP.
 
 | Reported lag | `lagKnown` | Result |
 |---|---|---|
-| 2 | true | `200` (within `x-max-staleness-seconds: 5`) |
-| 5 | true | `200` (boundary is inclusive) |
+| 2 or 5 | true | `200` (bound includes 5) |
 | 6 | true | `503 stale_attributes` |
-| 2 | false | `503 lag_unknown` |
-| 2 | true after failure | `200` recovery |
+| any | false | `503 lag_unknown` |
+| back to 2 | true | `200` recovery (stub stack only) |
 
-The read journey already uses `x-freshness: fresh`, so the sidecar bypasses its
-attribute cache and observes each state change immediately. The stub is test
-infrastructure only; production PIPs report real replica lag.
+The read journey uses `x-freshness: fresh`, so the sidecar bypasses its
+attribute cache and observes each value immediately.
 
 ## What the contract test covers
 
@@ -230,7 +234,8 @@ expired envelope, wrong signing key, and an Ed25519-verified bundle with no
 unsigned warning.
 
 `test-lag.sh` covers the staleness bound, `stale_attributes`, `lag_unknown` and
-recovery through the stub PIP.
+recovery through the stub PIP. `test-lag-fixture.sh` covers the boundary,
+stale and unknown cases through the reference PIP's `resourceMeta`.
 
 ## Repository layout
 
@@ -252,10 +257,13 @@ sidecar.yaml                 sidecar runtime config (unsigned local bundle)
 sidecar.signed.yaml          signed bundle + HMAC identity runtime config
 compose.yaml                 app + PIP + sidecar (development headers)
 compose.signed.yaml          app + PIP + sidecar (signed bundle + identity)
-compose.lag.yaml             app + stub PIP + sidecar (replica-lag matrix)
+compose.lag.yaml             app + stub PIP + sidecar (dynamic lag matrix)
+compose.lag-fixture.yaml     app + reference PIP + sidecar (static lag matrix)
+pip/pip.lag.yaml             PIP config without a process-wide lag override
 test.sh                      end-to-end contract test (development headers)
 test-signed.sh               signed bundle + signed identity contract test
-test-lag.sh                  stale_attributes / lag_unknown / recovery matrix
+test-lag.sh                  dynamic stale_attributes / lag_unknown / recovery
+test-lag-fixture.sh          fixture resourceMeta static lag matrix
 tools/sign_identity.py       local HMAC envelope helper (stdlib only)
 tools/stubpip/               local PIP contract stub with state-file lag
 pip/Dockerfile.stub          image for the local stub PIP

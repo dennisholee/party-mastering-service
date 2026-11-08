@@ -1,0 +1,6 @@
+server:
+  addr: ":8082"
+  metricsAddr: ":9090"
+  # No process-wide lag override: use the fixture's per-resource resourceMeta.
+repository:
+  fixtures: /etc/controls/attributes.json

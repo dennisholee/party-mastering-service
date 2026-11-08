@@ -106,6 +106,10 @@ jobs:
         working-directory: party-mastering-service
         run: make test-signed
 
-      - name: Replica-lag failure matrix
+      - name: Replica-lag failure matrix (stub PIP)
         working-directory: party-mastering-service
         run: make test-lag
+
+      - name: Replica-lag fixture matrix (reference PIP)
+        working-directory: party-mastering-service
+        run: make test-lag-fixture
